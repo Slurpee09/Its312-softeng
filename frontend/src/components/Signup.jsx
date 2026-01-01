@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import { FaUser, FaEnvelope, FaLock, FaGoogle, FaSpinner } from "react-icons/fa";
 import { Link, useNavigate } from "react-router-dom";
+import { UserContext } from "./UserContext";
 import bgImage from "../assets/lccbg.jpg";
 
 const Signup = () => {
+  const { user } = useContext(UserContext);
   const [fullname, setFullname] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -12,6 +14,13 @@ const Signup = () => {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(null);
   const navigate = useNavigate();
+
+  // Redirect away from signup page if already authenticated
+  useEffect(() => {
+    if (!user) return;
+    if (user.role === "admin") navigate("/admin", { replace: true });
+    else navigate("/", { replace: true });
+  }, [user, navigate]);
 
   // Google OAuth listener
   useEffect(() => {
@@ -23,7 +32,13 @@ const Signup = () => {
         // Persist user so the app treats them as logged in
         try { localStorage.setItem("user", JSON.stringify(user)); } catch (e) { console.error(e); }
         setMessage({ type: "success", text: `Welcome, ${user.fullname}` });
-        setTimeout(() => navigate("/"), 1500);
+        setTimeout(() => {
+          navigate("/", { replace: true });
+          // If profile incomplete, open profile modal to prompt user to complete details
+          if (!user.profile_picture || !user.fullname) {
+            try { window.dispatchEvent(new CustomEvent('openProfile')); } catch (e) {}
+          }
+        }, 1500);
       } else if (user && user.message) {
         // Signup flow: backend returns a message and DOES NOT auto-login
         setMessage({ type: "success", text: user.message });
@@ -80,27 +95,8 @@ const Signup = () => {
       const result = await response.json();
 
       if (response.ok) {
-        // If server returned user (auto-login), persist and navigate home
-        if (result && result.user && result.user.id) {
-          try { localStorage.setItem("user", JSON.stringify(result.user)); } catch (e) { console.error(e); }
-          setMessage({ type: "success", text: `Welcome, ${result.user.fullname}` });
-
-          // CLEAR INPUTS
-          setFullname("");
-          setEmail("");
-          setPassword("");
-          setAgreed(false);
-
-          // 🔥 ADD SIGNUP ACTIVITY LOG
-          await logSignupActivity(email);
-
-          // Navigate to homepage (full reload to ensure Navbar updates)
-          setTimeout(() => { window.location.href = '/'; }, 900);
-          return;
-        }
-
-        // SUCCESS MESSAGE (no auto-login)
-        setMessage({ type: "success", text: result.message });
+        // Signup succeeded — do NOT auto-login. Prompt user to login.
+        setMessage({ type: "success", text: result.message || "Signup successful. Please login." });
 
         // CLEAR INPUTS
         setFullname("");
@@ -111,8 +107,8 @@ const Signup = () => {
         // 🔥 ADD SIGNUP ACTIVITY LOG
         await logSignupActivity(email);
 
-        // REDIRECT
-        setTimeout(() => navigate("/login"), 2000);
+        // REDIRECT to login
+        setTimeout(() => navigate("/login", { replace: true }), 1500);
       } else {
         setMessage({ type: "error", text: result.message || "Signup failed" });
       }

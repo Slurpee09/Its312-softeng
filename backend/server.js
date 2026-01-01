@@ -6,6 +6,7 @@ import express from "express";
 import cors from "cors";
 import session from "express-session";
 import passport from "passport";
+import "./config/passport.js";
 import mysql from "mysql2/promise";
 
 // Import routes

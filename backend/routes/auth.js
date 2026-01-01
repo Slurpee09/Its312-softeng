@@ -92,37 +92,14 @@ router.post("/signup", async (req, res) => {
     const [rows] = await db.query("SELECT * FROM users WHERE id = ?", [result.insertId]);
     const newUser = rows[0];
 
-    // Auto-login the new user (establish session)
-    req.login(newUser, async (err) => {
-      if (err) {
-        console.error('req.login error during signup:', err);
-        // still return success but ask user to login
-        await logActivity(result.insertId, "user", "signup", `User signed up but login failed: ${email}`);
-        return res.json({ success: true, message: "Signup successful! Please login." });
-      }
+    // Do NOT auto-login the user. Instead prompt them to login so they can verify credentials.
+    try {
+      await logActivity(result.insertId, "user", "signup", `User signed up: ${email}`);
+    } catch (e) {
+      console.error('logActivity error after signup:', e);
+    }
 
-      // Enforce single active session for signup too
-      try {
-        const [rows] = await db.query("SELECT session_id FROM user_sessions WHERE user_id = ?", [newUser.id]);
-        if (rows.length > 0 && rows[0].session_id && rows[0].session_id !== req.sessionID) {
-          try { req.sessionStore.destroy(rows[0].session_id, () => {}); } catch (e) { console.error('destroy prev session on signup', e); }
-        }
-        await db.query("INSERT INTO user_sessions (user_id, session_id) VALUES (?, ?) ON DUPLICATE KEY UPDATE session_id = VALUES(session_id)", [newUser.id, req.sessionID]);
-      } catch (e) {
-        console.error('user_sessions update error (signup):', e);
-      }
-
-      try {
-        await logActivity(result.insertId, "user", "signup", `User signed up: ${email}`);
-      } catch (e) {
-        console.error('logActivity error after signup:', e);
-      }
-
-      // remove sensitive fields
-      if (newUser.password) delete newUser.password;
-
-      res.json({ success: true, message: "Signup successful", user: newUser });
-    });
+    res.json({ success: true, message: "Signup successful. Please login." });
   } catch (err) {
     console.error("Signup error:", err);
     res.status(500).json({ message: "Server error" });
@@ -345,11 +322,16 @@ router.get('/google/callback', (req, res, next) => {
       }
 
       if (isSignup) {
-        // Signup completed: establish session manually and send user to opener
+        // Signup completed: establish session manually and send user to opener (auto-login)
+        try {
+          if (req.session && req.session.googleSignup) delete req.session.googleSignup;
+        } catch (e) {}
+
         try {
           const safeUser = { ...user };
           if (safeUser.password) delete safeUser.password;
           if (req.session) req.session.user = safeUser;
+
           // Enforce single active session for Google signup as well
           try {
             const [rows] = await db.query("SELECT session_id FROM user_sessions WHERE user_id = ?", [user.id]);
@@ -360,6 +342,7 @@ router.get('/google/callback', (req, res, next) => {
           } catch (e) {
             console.error('user_sessions update error (google signup):', e);
           }
+
           try {
             await logActivity(user.id, user.role, 'google_signup', 'Google signup and auto-login');
           } catch (e) {
@@ -381,6 +364,7 @@ router.get('/google/callback', (req, res, next) => {
             </script>
           `);
         }
+
         return;
       }
 

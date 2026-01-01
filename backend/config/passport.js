@@ -54,6 +54,8 @@ passport.use(
   )
 );
 
+console.log('Passport Google strategy registered');
+
 passport.serializeUser((user, done) => done(null, user.id));
 
 passport.deserializeUser(async (id, done) => {

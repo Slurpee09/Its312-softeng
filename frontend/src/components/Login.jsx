@@ -1,14 +1,23 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import { FaUser, FaLock, FaSpinner, FaGoogle } from "react-icons/fa";
 import { Link, useNavigate } from "react-router-dom";
+import { UserContext } from "./UserContext";
 import bgImage from "../assets/lccbg.jpg";
 
 const Login = () => {
   const navigate = useNavigate();
+  const { user } = useContext(UserContext);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(null);
+
+  // Redirect away from login page if already authenticated
+  useEffect(() => {
+    if (!user) return;
+    if (user.role === "admin") navigate("/admin", { replace: true });
+    else navigate("/", { replace: true });
+  }, [user, navigate]);
 
   const showTempMessage = (msg, type = "error") => {
     setMessage({ text: msg, type });
@@ -62,8 +71,8 @@ const Login = () => {
         setEmail("");
         setPassword("");
 
-        if (result.user.role === "admin") navigate("/admin");
-        else navigate("/");
+        if (result.user.role === "admin") navigate("/admin", { replace: true });
+        else navigate("/", { replace: true });
       } else if (result) {
         await logActivity("Failed login attempt", "GUEST");
         showTempMessage(result.message || "Login failed");
@@ -137,8 +146,14 @@ const Login = () => {
         localStorage.setItem("user", JSON.stringify(user));
         showTempMessage(`Welcome, ${user.fullname}`, "success");
         setTimeout(() => {
-          if (user.role === "admin") navigate("/admin");
-          else navigate("/");
+          if (user.role === "admin") navigate("/admin", { replace: true });
+          else {
+            navigate("/", { replace: true });
+            // If profile looks incomplete, open profile modal so user can update details
+            if (!user.profile_picture || !user.fullname) {
+              try { window.dispatchEvent(new CustomEvent('openProfile')); } catch (e) {}
+            }
+          }
         }, 1000);
       } else if (user && user.message) {
         alert(user.message); // Google account not registered

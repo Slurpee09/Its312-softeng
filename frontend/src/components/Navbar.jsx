@@ -72,6 +72,13 @@ function Navbar() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Listen for requests to open the profile modal (used after OAuth flows)
+  useEffect(() => {
+    const onOpenProfile = () => setShowProfile(true);
+    window.addEventListener('openProfile', onOpenProfile);
+    return () => window.removeEventListener('openProfile', onOpenProfile);
+  }, []);
+
   const toggleProfile = () => setShowProfile(!showProfile);
 
   // Helper to correctly get full image URL
