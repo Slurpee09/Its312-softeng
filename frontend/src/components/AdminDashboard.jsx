@@ -96,6 +96,25 @@ function AdminDashboard() {
     return () => window.removeEventListener('profileUpdated', handler);
   }, []);
 
+  // Prevent navigating back out of admin dashboard when an admin is logged in
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('user');
+      const u = stored ? JSON.parse(stored) : null;
+      if (!u || u.role !== 'admin') return;
+
+      // Push a history state so that pressing Back stays on the admin page
+      window.history.pushState(null, '', window.location.href);
+      const onPopState = () => {
+        window.history.pushState(null, '', window.location.href);
+      };
+      window.addEventListener('popstate', onPopState);
+      return () => window.removeEventListener('popstate', onPopState);
+    } catch (e) {
+      // ignore
+    }
+  }, []);
+
   const COLORS = ["#8884d8", "#82ca9d", "#ffc658", "#ff8042", "#a4de6c", "#d0ed57"];
 
   const renderSection = () => {
