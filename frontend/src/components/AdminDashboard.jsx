@@ -38,7 +38,7 @@ function AdminDashboard() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const res = await axios.get("http://localhost:5000/admin/dashboard-stats");
+        const res = await api.get("/admin/dashboard-stats");
         const data = res.data;
 
         // Make sure all numeric fields are numbers
@@ -99,7 +99,12 @@ function AdminDashboard() {
     try {
       const stored = localStorage.getItem('user');
       const u = stored ? JSON.parse(stored) : null;
-      if (!u || u.role !== 'admin') return;
+      
+      // Redirect to home if not admin
+      if (!u || u.role !== 'admin') {
+        window.location.href = '/';
+        return;
+      }
 
       // Push a history state so that pressing Back stays on the admin page
       window.history.pushState(null, '', window.location.href);
@@ -109,7 +114,8 @@ function AdminDashboard() {
       window.addEventListener('popstate', onPopState);
       return () => window.removeEventListener('popstate', onPopState);
     } catch (e) {
-      // ignore
+      // Redirect on error
+      window.location.href = '/';
     }
   }, []);
 

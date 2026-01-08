@@ -16,8 +16,22 @@ import {
 } from "../controllers/adminController.js";
 import { db } from "../server.js";
 import { logActivity } from "../utils/activityLogger.js";
+import { authenticateJWT } from "../utils/jwt.js";
 
 const router = express.Router();
+
+// ---------------------------
+// JWT Authentication Middleware for ALL admin routes
+// ---------------------------
+router.use(authenticateJWT);
+
+// Additional admin role check
+router.use((req, res, next) => {
+  if (!req.user || req.user.role !== 'admin') {
+    return res.status(403).json({ message: "Access denied. Admin role required." });
+  }
+  next();
+});
 
 // ---------------------------
 // Multer setup for profile picture upload
