@@ -31,8 +31,8 @@ const transporter = nodemailer.createTransport({
 // -----------------------------
 const createAdmin = async () => {
   try {
-    const adminEmail = "admin@eteeap.com";
-    const adminPassword = "Admin123";
+    const adminEmail = process.env.adminEmail;
+    const adminPassword = process.env.adminPassword;
     const adminFullname = "Administrator";
     const adminRole = "admin";
 
