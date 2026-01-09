@@ -162,5 +162,24 @@ app.listen(port, async () => {
   } catch (err) {
     console.error('Failed to ensure applications_trash table or start purge job', err);
   }
+
+  // Ensure verified_files table exists
+  (async () => {
+    try {
+      await db.query(`
+        CREATE TABLE IF NOT EXISTS verified_files (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          application_id INT NOT NULL,
+          file_key VARCHAR(255) NOT NULL,
+          verified_by INT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          INDEX (application_id),
+          INDEX (file_key)
+        ) ENGINE=InnoDB;
+      `);
+      console.log('Verified files table ensured');
+    } catch (e) {
+      console.error('Failed to ensure verified_files table', e);
+    }
+  })();
 })();
- 

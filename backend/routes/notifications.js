@@ -171,6 +171,17 @@ router.post("/resubmit", upload.single("file"), async (req, res) => {
     ];
     if (!allowed.includes(document_name)) return res.status(400).json({ message: "Invalid document_name" });
 
+    // Prevent resubmission if the document has already been verified
+    try {
+      const [vf] = await db.query("SELECT id FROM verified_files WHERE application_id = ? AND file_key = ? LIMIT 1", [application_id, document_name]);
+      if (vf && vf.length > 0) {
+        return res.status(403).json({ message: "Document already verified and cannot be replaced" });
+      }
+    } catch (e) {
+      console.error('Verified files check failed:', e);
+      // continue to fail-safe below if needed
+    }
+
     // Update the applications table
     const [result] = await db.query(
       `UPDATE applications SET ${document_name} = ? WHERE id = ?`,

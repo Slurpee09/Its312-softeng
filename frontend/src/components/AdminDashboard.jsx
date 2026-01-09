@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { Menu, X, LayoutDashboard, Users, Settings, LogOut } from "lucide-react";
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
-import axios from "axios";
+import api from "../api/axios";
 
 import logoImg from "../assets/ETEEAP_LOGO.png";
 
