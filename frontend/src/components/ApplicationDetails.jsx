@@ -179,7 +179,7 @@ function ApplicationDetails() {
                       </div>
 
                       {/* Hide upload/resubmit controls when application is accepted/rejected */}
-                      {!readOnly ? (
+                      {!readOnly && !verifiedFlag ? (
                         <div className="flex flex-col items-stretch gap-2 md:items-end md:w-auto w-full">
                           <label className="w-full md:w-auto">
                             <input id={`file-input-${d.key}`} className="hidden" type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={(e) => handleFileChange(d.key, e.target.files[0])} />
@@ -195,9 +195,11 @@ function ApplicationDetails() {
                             {uploadingDoc === d.key ? "Uploading..." : (val ? "Resubmit" : "Upload")}
                           </button>
                         </div>
+                      ) : (verifiedFlag ? (
+                        <div className="text-sm text-gray-500">This document has been verified and is read-only.</div>
                       ) : (
                         <div className="text-sm text-gray-500">This application is read-only.</div>
-                      )}
+                      ))}
                     </div>
                 </div>
               );

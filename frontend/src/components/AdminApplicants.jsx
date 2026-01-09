@@ -110,6 +110,11 @@ function AdminApplicants() {
     fetchSupported();
   }, []);
 
+  // Fetch the applicants list when this component mounts
+  useEffect(() => {
+    fetchApplicants();
+  }, []);
+
   // --- LOG ACTIVITY ---
   const logActivity = async (action, details) => {
     try {
@@ -279,10 +284,16 @@ function AdminApplicants() {
 
   // --- SEARCH + STATUS FILTER ---
   const filtered = applicants.filter(a => {
-    const matchesSearch = a.full_name.toLowerCase().includes(search.toLowerCase()) ||
-      a.email.toLowerCase().includes(search.toLowerCase()) ||
-      (a.phone || "").toLowerCase().includes(search.toLowerCase()) ||
-      a.program_name.toLowerCase().includes(search.toLowerCase());
+    const name = String(a.full_name || (a.data && a.data.full_name) || "");
+    const email = String(a.email || (a.data && a.data.email) || "");
+    const phone = String(a.phone || "");
+    const program = String(a.program_name || "");
+
+    const q = search.toLowerCase();
+    const matchesSearch = name.toLowerCase().includes(q) ||
+      email.toLowerCase().includes(q) ||
+      phone.toLowerCase().includes(q) ||
+      program.toLowerCase().includes(q);
 
     const matchesStatus = statusFilter === 'All' ? true : String(a.status) === statusFilter;
 

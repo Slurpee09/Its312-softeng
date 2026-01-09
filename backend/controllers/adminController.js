@@ -8,13 +8,14 @@ import bcrypt from "bcryptjs";
 export const getAllApplications = async (req, res) => {
   try {
     const [rows] = await db.query(
-      `SELECT id, program_name, full_name, email, phone, marital_status, is_business_owner,
-      business_name, letter_of_intent, resume, picture, application_form, recommendation_letter,
-      school_credentials, high_school_diploma, transcript, birth_certificate, employment_certificate,
-      nbi_clearance, marriage_certificate, business_registration, certificates, created_at,
-      resume_status, resume_remark, status
-      FROM applications
-      ORDER BY created_at DESC`
+      `SELECT a.id, a.program_name, COALESCE(a.full_name, u.fullname) AS full_name, COALESCE(a.email, u.email) AS email, a.phone, a.marital_status, a.is_business_owner,
+      a.business_name, a.letter_of_intent, a.resume, a.picture, a.application_form, a.recommendation_letter,
+      a.school_credentials, a.high_school_diploma, a.transcript, a.birth_certificate, a.employment_certificate,
+      a.nbi_clearance, a.marriage_certificate, a.business_registration, a.certificates, a.created_at,
+      a.resume_status, a.resume_remark, a.status
+      FROM applications a
+      LEFT JOIN users u ON a.user_id = u.id
+      ORDER BY a.created_at DESC`
     );
 
     // Get verified files and normalize to explicit 0/1 flags for all known file keys
