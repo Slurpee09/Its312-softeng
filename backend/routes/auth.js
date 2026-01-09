@@ -7,17 +7,11 @@ import crypto from "crypto";
 import nodemailer from "nodemailer";
 import dotenv from "dotenv";
 import { logActivity } from "../utils/activityLogger.js";
+import { generateToken } from "../utils/jwt.js";
 import db from "../config/db.js"; // promise-based pool
 
 dotenv.config();
 const router = express.Router();
-
-// Ensure table for tracking active sessions exists
-db.query(`CREATE TABLE IF NOT EXISTS user_sessions (
-  user_id INT PRIMARY KEY,
-  session_id VARCHAR(255),
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-)`).catch((err) => console.error("user_sessions table error:", err));
 
 // -----------------------------
 // Utilities
@@ -37,8 +31,8 @@ const transporter = nodemailer.createTransport({
 // -----------------------------
 const createAdmin = async () => {
   try {
-    const adminEmail = "admin@eteeap.com";
-    const adminPassword = "Admin123";
+    const adminEmail = process.env.adminEmail;
+    const adminPassword = process.env.adminPassword;
     const adminFullname = "Administrator";
     const adminRole = "admin";
 
@@ -91,6 +85,18 @@ router.post("/signup", async (req, res) => {
     // fetch created user
     const [rows] = await db.query("SELECT * FROM users WHERE id = ?", [result.insertId]);
     const newUser = rows[0];
+    delete newUser.password;
+
+    // Generate JWT token for auto-login after signup
+    const token = generateToken(newUser);
+
+    // Set JWT in httpOnly cookie
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 1000, // 1 hour
+    });
 
     // Do NOT auto-login the user. Instead prompt them to login so they can verify credentials.
     try {
@@ -125,22 +131,22 @@ router.post("/login", async (req, res) => {
 
     delete user.password;
 
+    // Generate JWT token
+    const token = generateToken(user);
+
+    // Set JWT in httpOnly cookie (expires in 1 hour)
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 1000, // 1 hour
+    });
+
     // Establish session manually to avoid passport session regenerate errors
     try {
       const safeUser = { ...user };
       if (safeUser.password) delete safeUser.password;
       if (req.session) req.session.user = safeUser;
-
-      // Enforce single active session: destroy previous session if exists
-      try {
-        const [rows] = await db.query("SELECT session_id FROM user_sessions WHERE user_id = ?", [user.id]);
-        if (rows.length > 0 && rows[0].session_id && rows[0].session_id !== req.sessionID) {
-          try { req.sessionStore.destroy(rows[0].session_id, () => {}); } catch (e) { console.error('destroy prev session', e); }
-        }
-        await db.query("INSERT INTO user_sessions (user_id, session_id) VALUES (?, ?) ON DUPLICATE KEY UPDATE session_id = VALUES(session_id)", [user.id, req.sessionID]);
-      } catch (e) {
-        console.error('user_sessions update error:', e);
-      }
 
       try {
         await logActivity(user.id, user.role, "login", "User logged in");
@@ -162,10 +168,8 @@ router.post("/login", async (req, res) => {
 // LOGOUT
 router.post('/logout', async (req, res) => {
   try {
-    const userId = req.user?.id;
-    if (userId) {
-      await db.query('DELETE FROM user_sessions WHERE user_id = ?', [userId]);
-    }
+    // Clear JWT cookie
+    res.clearCookie('token');
 
     req.logout(() => {});
     try { req.session.destroy(() => {}); } catch (e) {}
@@ -332,16 +336,16 @@ router.get('/google/callback', (req, res, next) => {
           if (safeUser.password) delete safeUser.password;
           if (req.session) req.session.user = safeUser;
 
-          // Enforce single active session for Google signup as well
-          try {
-            const [rows] = await db.query("SELECT session_id FROM user_sessions WHERE user_id = ?", [user.id]);
-            if (rows.length > 0 && rows[0].session_id && rows[0].session_id !== req.sessionID) {
-              try { req.sessionStore.destroy(rows[0].session_id, () => {}); } catch (e) { console.error('destroy prev session (google signup)', e); }
-            }
-            await db.query("INSERT INTO user_sessions (user_id, session_id) VALUES (?, ?) ON DUPLICATE KEY UPDATE session_id = VALUES(session_id)", [user.id, req.sessionID]);
-          } catch (e) {
-            console.error('user_sessions update error (google signup):', e);
-          }
+          // Generate JWT token for Google signup
+          const token = generateToken(user);
+
+          // Set JWT in httpOnly cookie
+          res.cookie('token', token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'none', // Allow cross-site for OAuth popup
+            maxAge: 60 * 60 * 1000, // 1 hour
+          });
 
           try {
             await logActivity(user.id, user.role, 'google_signup', 'Google signup and auto-login');
@@ -373,16 +377,18 @@ router.get('/google/callback', (req, res, next) => {
         const safeUser = { ...user };
         if (safeUser.password) delete safeUser.password;
         if (req.session) req.session.user = safeUser;
-        // Enforce single active session for Google login
-        try {
-          const [rows] = await db.query("SELECT session_id FROM user_sessions WHERE user_id = ?", [user.id]);
-          if (rows.length > 0 && rows[0].session_id && rows[0].session_id !== req.sessionID) {
-            try { req.sessionStore.destroy(rows[0].session_id, () => {}); } catch (e) { console.error('destroy prev session (google login)', e); }
-          }
-          await db.query("INSERT INTO user_sessions (user_id, session_id) VALUES (?, ?) ON DUPLICATE KEY UPDATE session_id = VALUES(session_id)", [user.id, req.sessionID]);
-        } catch (e) {
-          console.error('user_sessions update error (google login):', e);
-        }
+
+        // Generate JWT token for Google login
+        const token = generateToken(user);
+
+        // Set JWT in httpOnly cookie
+        res.cookie('token', token, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'none', // Allow cross-site for OAuth popup
+          maxAge: 60 * 60 * 1000, // 1 hour
+        });
+
         await logActivity(user.id, user.role, 'google_login_callback', 'Google login callback');
 
         res.send(`
@@ -421,4 +427,5 @@ router.get("/failure", (req, res) => {
   `);
 });
 
+export { createAdmin };
 export default router;

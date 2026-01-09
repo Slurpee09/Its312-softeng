@@ -1,8 +1,20 @@
 // routes/adminDashboard.js
 import express from "express";
 import { db } from "../server.js";
+import { authenticateJWT } from "../utils/jwt.js";
 
 const router = express.Router();
+
+// JWT Authentication Middleware for dashboard
+router.use(authenticateJWT);
+
+// Admin role check
+router.use((req, res, next) => {
+  if (!req.user || req.user.role !== 'admin') {
+    return res.status(403).json({ message: "Access denied. Admin role required." });
+  }
+  next();
+});
 
 // GET /admin/dashboard-stats
 router.get("/dashboard-stats", async (req, res) => {

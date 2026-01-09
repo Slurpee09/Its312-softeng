@@ -6,104 +6,102 @@ const User = {
   // -----------------------------
   // Find user by email
   // -----------------------------
-  findByEmail: (email) =>
-    new Promise((resolve, reject) => {
-      if (!email) return resolve(null);
-      db.query("SELECT * FROM users WHERE email = ?", [email], (err, results) => {
-        if (err) return reject(err);
-        resolve(results[0] || null);
-      });
-    }),
+  findByEmail: async (email) => {
+    if (!email) return null;
+    try {
+      const [rows] = await db.query("SELECT * FROM users WHERE email = ?", [email]);
+      return rows[0] || null;
+    } catch (err) {
+      console.error("findByEmail error:", err);
+      throw err;
+    }
+  },
 
   // -----------------------------
   // Find user by ID
   // -----------------------------
-  findById: (id) =>
-    new Promise((resolve, reject) => {
-      if (!id) return resolve(null);
-      db.query("SELECT * FROM users WHERE id = ?", [id], (err, results) => {
-        if (err) return reject(err);
-        resolve(results[0] || null);
-      });
-    }),
+  findById: async (id) => {
+    if (!id) return null;
+    try {
+      const [rows] = await db.query("SELECT * FROM users WHERE id = ?", [id]);
+      return rows[0] || null;
+    } catch (err) {
+      console.error("findById error:", err);
+      throw err;
+    }
+  },
 
   // -----------------------------
   // Find user by Google ID
   // -----------------------------
-  findByGoogleId: (googleId) =>
-    new Promise((resolve, reject) => {
-      if (!googleId) return resolve(null);
-      db.query(
-        "SELECT * FROM users WHERE google_id = ?",
-        [googleId],
-        (err, results) => {
-          if (err) return reject(err);
-          resolve(results[0] || null);
-        }
-      );
-    }),
+  findByGoogleId: async (googleId) => {
+    if (!googleId) return null;
+    try {
+      const [rows] = await db.query("SELECT * FROM users WHERE google_id = ?", [googleId]);
+      return rows[0] || null;
+    } catch (err) {
+      console.error("findByGoogleId error:", err);
+      throw err;
+    }
+  },
 
   // -----------------------------
   // Create new user
   // -----------------------------
   createUser: async ({ fullname, email, password, role = "user", googleId = null }) => {
-    return new Promise(async (resolve, reject) => {
-      try {
-        const hashedPassword = password ? await bcrypt.hash(password, 10) : null;
+    try {
+      const hashedPassword = password ? await bcrypt.hash(password, 10) : null;
 
-        db.query(
-          "INSERT INTO users (fullname, email, password, role, google_id) VALUES (?, ?, ?, ?, ?)",
-          [fullname, email, hashedPassword, role, googleId],
-          (err, result) => {
-            if (err) return reject(err);
+      const [result] = await db.query(
+        "INSERT INTO users (fullname, email, password, role, google_id) VALUES (?, ?, ?, ?, ?)",
+        [fullname, email, hashedPassword, role, googleId]
+      );
 
-            db.query("SELECT * FROM users WHERE id = ?", [result.insertId], (err2, users) => {
-              if (err2) return reject(err2);
-              resolve(users[0] || null);
-            });
-          }
-        );
-      } catch (err) {
-        reject(err);
-      }
-    });
+      const [rows] = await db.query("SELECT * FROM users WHERE id = ?", [result.insertId]);
+      return rows[0] || null;
+    } catch (err) {
+      console.error("createUser error:", err);
+      throw err;
+    }
   },
 
   // -----------------------------
   // Update password by email
   // -----------------------------
-  updatePassword: (email, newHashedPassword) =>
-    new Promise((resolve, reject) => {
-      if (!email || !newHashedPassword)
-        return reject(new Error("Email and new password required"));
-
-      db.query(
+  updatePassword: async (email, newHashedPassword) => {
+    if (!email || !newHashedPassword) {
+      throw new Error("Email and new password required");
+    }
+    try {
+      const [result] = await db.query(
         "UPDATE users SET password = ? WHERE email = ?",
-        [newHashedPassword, email],
-        (err, result) => {
-          if (err) return reject(err);
-          resolve(result);
-        }
+        [newHashedPassword, email]
       );
-    }),
+      return result;
+    } catch (err) {
+      console.error("updatePassword error:", err);
+      throw err;
+    }
+  },
 
   // -----------------------------
   // Update Google ID for existing user by email
   // -----------------------------
-  updateGoogleId: (email, googleId) =>
-    new Promise((resolve, reject) => {
-      if (!email || !googleId)
-        return reject(new Error("Email and Google ID are required"));
-
-      db.query(
+  updateGoogleId: async (email, googleId) => {
+    if (!email || !googleId) {
+      throw new Error("Email and Google ID are required");
+    }
+    try {
+      const [result] = await db.query(
         "UPDATE users SET google_id = ? WHERE email = ?",
-        [googleId, email],
-        (err, result) => {
-          if (err) return reject(err);
-          resolve(result);
-        }
+        [googleId, email]
       );
-    }),
+      return result;
+    } catch (err) {
+      console.error("updateGoogleId error:", err);
+      throw err;
+    }
+  },
 };
 
 export default User;

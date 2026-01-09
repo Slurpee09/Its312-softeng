@@ -5,12 +5,13 @@ dotenv.config();
 import express from "express";
 import cors from "cors";
 import session from "express-session";
+import cookieParser from "cookie-parser";
 import passport from "passport";
 import "./config/passport.js";
 import mysql from "mysql2/promise";
 
 // Import routes
-import authRoutes from "./routes/auth.js";                  
+import authRoutes, { createAdmin } from "./routes/auth.js";                  
 import submitApplicationRoutes from "./config/submit_application.js";
 import profileRoutes from "./routes/profile.js";
 import adminRoutes from "./routes/admin.js";
@@ -41,6 +42,7 @@ app.use(
 );
 
 app.use(express.json());
+app.use(cookieParser());
 
 app.use(
   session({
@@ -59,23 +61,6 @@ app.use((req, res, next) => {
     if (!req.user && req.session && req.session.user) req.user = req.session.user;
   } catch (e) {
     // ignore
-  }
-  next();
-});
-
-// Global middleware: enforce single active session per user
-app.use(async (req, res, next) => {
-  try {
-    if (req.user && req.sessionID) {
-      const [rows] = await db.query("SELECT session_id FROM user_sessions WHERE user_id = ?", [req.user.id]);
-      if (rows.length > 0 && rows[0].session_id && rows[0].session_id !== req.sessionID) {
-        // current session is not the active one -> log out
-        try { req.logout(() => {}); } catch (e) {}
-        try { req.session.destroy(() => {}); } catch (e) {}
-      }
-    }
-  } catch (e) {
-    console.error('session enforcement error:', e);
   }
   next();
 });
@@ -114,9 +99,12 @@ app.post('/log_activity', async (req, res) => {
 app.use((req, res) => res.status(404).json({ message: "Route not found" }));
 
 // Start server
-app.listen(port, () => 
-  console.log(`🚀 Server running on http://localhost:${port}`)
-);
+app.listen(port, async () => {
+  console.log(`🚀 Server running on http://localhost:${port}`);
+  
+  // Create admin account on startup
+  await createAdmin();
+});
 
 // Ensure trash table exists and purge old trashed items daily
 (async () => {

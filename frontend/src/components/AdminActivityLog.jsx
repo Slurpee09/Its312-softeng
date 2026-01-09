@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 // Removed CSV export (security / audit requirement)
 import axios from "axios";
+import api from "../api/axios";
 axios.defaults.withCredentials = true;
 
 function AdminActivityLog() {
@@ -15,7 +16,7 @@ function AdminActivityLog() {
     const fetchLogs = async () => {
       setLoading(true);
       try {
-        const response = await axios.get("http://localhost:5000/admin/activity-logs", {
+        const response = await api.get("/admin/activity-logs", {
           headers: {
             "x-user-id": localStorage.getItem("userId") || "",
           },

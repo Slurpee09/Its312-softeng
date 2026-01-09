@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Toast from "./Toast";
-import brumaImg from "../assets/bruma.jpg";
+import brumaImg from "../assets/Bruma.jpg";
 import ellenImg from "../assets/ellen.jpg";
 
 const programs = [

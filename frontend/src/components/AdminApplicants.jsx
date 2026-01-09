@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Trash2, Check, XCircle, Eye } from "lucide-react";
 import axios from "axios";
+import api from "../api/axios";
 import Toast from "./Toast";
 
 const FILE_COLUMNS = [
@@ -81,13 +82,7 @@ function AdminApplicants() {
     setTimeout(() => setToast(null), 3000);
   };
 
-  const backendURL = "http://localhost:5000";
-  // ensure axios sends cookies for session-based admin auth
-  axios.defaults.withCredentials = true;
 
-  useEffect(() => { fetchApplicants(); }, []);
-
-  // If ?open=ID is present in query params (navigated from notification), open that application on load
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const openId = params.get('open');
@@ -105,7 +100,7 @@ function AdminApplicants() {
   useEffect(() => {
     const fetchSupported = async () => {
       try {
-        const res = await axios.get(`${backendURL}/admin/document-status-supported`);
+        const res = await api.get("/admin/document-status-supported");
         setSupportedDocStatusKeys(res.data.supported || []);
       } catch (e) {
         console.warn('Failed to fetch supported doc status keys', e?.response?.data || e.message);
@@ -118,7 +113,7 @@ function AdminApplicants() {
   // --- LOG ACTIVITY ---
   const logActivity = async (action, details) => {
     try {
-      await axios.post(`${backendURL}/admin/log`, { action, details });
+      await api.post("/admin/log", { action, details });
     } catch (err) {
       console.error("Activity logging failed:", err);
     }
@@ -127,7 +122,7 @@ function AdminApplicants() {
   // --- FETCH APPLICANTS ---
   const fetchApplicants = async () => {
     try {
-      const res = await axios.get(`${backendURL}/admin/applications`);
+      const res = await api.get("/admin/applications");
       setApplicants(res.data);
     } catch (err) { console.error(err); }
   };
@@ -139,7 +134,7 @@ function AdminApplicants() {
       const normalized = String(status).toLowerCase();
 
       // Update application status on server first
-      const res = await axios.put(`${backendURL}/admin/applications/${id}/status`, { status: normalized });
+      const res = await api.put(`/admin/applications/${id}/status`, { status: normalized });
       const updated = res.data || {};
 
       // Find current applicant record (to know which files are uploaded)
@@ -150,7 +145,7 @@ function AdminApplicants() {
         const filesToVerify = FILE_COLUMNS.filter(f => applicant[f]);
         if (filesToVerify.length > 0) {
           await Promise.all(filesToVerify.map(f =>
-            axios.put(`${backendURL}/admin/applications/${id}/documents/${f}/verify`, { verified: 1 })
+            api.put(`/admin/applications/${id}/documents/${f}/verify`, { verified: 1 })
           ));
 
           // Merge verified flags locally
@@ -177,7 +172,7 @@ function AdminApplicants() {
         const filesToUnverify = FILE_COLUMNS.filter(f => applicant[f]);
         if (filesToUnverify.length > 0) {
           await Promise.all(filesToUnverify.map(f =>
-            axios.put(`${backendURL}/admin/applications/${id}/documents/${f}/verify`, { verified: 0 })
+            api.put(`/admin/applications/${id}/documents/${f}/verify`, { verified: 0 })
           ));
 
           setApplicants(prev => prev.map(a => {
@@ -205,7 +200,7 @@ function AdminApplicants() {
         if (filesToSet.length > 0) {
           const results = await Promise.all(filesToSet.map(async (f) => {
             try {
-              return await axios.put(`${backendURL}/admin/applications/${id}/documents`, { documentName: f, status: "pending" });
+              return await api.put(`/admin/applications/${id}/documents`, { documentName: f, status: "pending" });
             } catch (err) {
               // log and count but don't throw to allow other updates to proceed
               console.warn(`Failed to set document ${f} to pending for application ${id}:`, err?.response?.data || err.message);
@@ -242,7 +237,7 @@ function AdminApplicants() {
   const confirmDelete = id => setDeleteId(id);
   const doDelete = async () => {
     try {
-      await axios.delete(`${backendURL}/admin/applications/${deleteId}`);
+      await api.delete(`/admin/applications/${deleteId}`);
       // Refresh both lists so trash shows the moved item
       await fetchTrash();
       setApplicants(prev => prev.filter(a => a.id !== deleteId));
@@ -255,14 +250,14 @@ function AdminApplicants() {
   // --- TRASH OPERATIONS ---
   const fetchTrash = async () => {
     try {
-      const res = await axios.get(`${backendURL}/admin/applications/trash`);
+      const res = await api.get(`/admin/applications/trash`);
       setTrashedApplicants(res.data || []);
     } catch (err) { console.error('Failed to fetch trashed applications', err); setTrashedApplicants([]); }
   };
 
   const restoreTrashed = async (trashId) => {
     try {
-      await axios.post(`${backendURL}/admin/applications/trash/${trashId}/restore`);
+      await api.post(`/admin/applications/trash/${trashId}/restore`);
       showToast('Application restored', 'success');
       await logActivity('Restore Application', `Restored trashed application ${trashId}`);
       fetchTrash();
@@ -272,7 +267,7 @@ function AdminApplicants() {
 
   const permanentlyDelete = async (trashId) => {
     try {
-      await axios.delete(`${backendURL}/admin/applications/trash/${trashId}`);
+      await api.delete(`/admin/applications/trash/${trashId}`);
       showToast('Trashed application permanently deleted', 'success');
       await logActivity('Permanent Delete', `Permanently deleted trashed application ${trashId}`);
       fetchTrash();
@@ -304,7 +299,7 @@ function AdminApplicants() {
   // --- REMARK FUNCTIONS ---
   const showRemark = async (applicationId, documentName) => {
     try {
-      const res = await axios.get(`${backendURL}/admin/applications/${applicationId}/documents/${documentName}/remark`);
+      const res = await api.get(`/admin/applications/${applicationId}/documents/${documentName}/remark`);
       setRemarkData({ applicationId, documentName });
       setRemarkText(res.data.remark || "");
     } catch (err) {
@@ -317,7 +312,7 @@ function AdminApplicants() {
 
   const saveRemark = async () => {
     try {
-      await axios.post(`${backendURL}/admin/applications/${remarkData.applicationId}/documents/${remarkData.documentName}/remark`, {
+      await api.post(`/admin/applications/${remarkData.applicationId}/documents/${remarkData.documentName}/remark`, {
         remark: remarkText
       });
       await logActivity("Remark Sent", `Remark sent to Applicant ID ${remarkData.applicationId} for ${remarkData.documentName}`);
@@ -337,7 +332,7 @@ function AdminApplicants() {
       const currentlyVerified = applicant ? (applicant[`${fileKey}_verified`] === 1) : false;
       const newVal = currentlyVerified ? 0 : 1;
       // Use server's authoritative response which includes explicit per-file verified flags
-      const res = await axios.put(`${backendURL}/admin/applications/${applicantId}/documents/${fileKey}/verify`, { verified: newVal });
+      const res = await api.put(`/admin/applications/${applicantId}/documents/${fileKey}/verify`, { verified: newVal });
       const updatedApp = res.data || {};
 
       // Build updates only for recognized verified flags so we don't accidentally overwrite other fields
@@ -358,7 +353,7 @@ function AdminApplicants() {
       // If we just unverified a file, set application status to Pending on the server (status endpoint returns app row)
       if (newVal === 0) {
         try {
-          const statusRes = await axios.put(`${backendURL}/admin/applications/${applicantId}/status`, { status: "pending" });
+          const statusRes = await api.put(`/admin/applications/${applicantId}/status`, { status: "pending" });
           const updated = statusRes.data || {};
           // Merge only the status field to avoid clobbering verified flags
           setApplicants(prev => prev.map(a => a.id === applicantId ? { ...a, status: updated.status || a.status } : a));
@@ -384,12 +379,12 @@ function AdminApplicants() {
       const filesToVerify = FILE_COLUMNS.filter(f => showView[f]);
       // Explicitly mark each uploaded file as verified on backend
       await Promise.all(filesToVerify.map(f =>
-        axios.put(`${backendURL}/admin/applications/${showView.id}/documents/${f}/verify`, { verified: 1 })
+        api.put(`/admin/applications/${showView.id}/documents/${f}/verify`, { verified: 1 })
       ));
 
       // Also update applicant status on backend to Accepted
       try {
-        await axios.put(`${backendURL}/admin/applications/${showView.id}/status`, { status: "Accepted" });
+        await api.put(`/admin/applications/${showView.id}/status`, { status: "Accepted" });
       } catch (statusErr) {
         console.error("Failed to update applicant status on server:", statusErr);
         // continue, but show an error toast
@@ -645,7 +640,7 @@ function AdminApplicants() {
                     <div className="text-sm font-semibold text-gray-700 mb-2 text-center">{FILE_LABELS[f]}</div>
 
                     {fileURL ? (
-                      <button onClick={() => window.open(`${backendURL}/${fileURL}`, "_blank")}
+                      <button onClick={() => window.open(`http://localhost:5000/${fileURL}`, "_blank")}
                         className="text-gray-600 hover:text-gray-800 mb-1">
                         <Eye size={24} />
                       </button>

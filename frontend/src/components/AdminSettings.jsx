@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import api from "../api/axios";
 import { Pencil } from "lucide-react";
 
 const AdminSettings = () => {
@@ -29,7 +30,7 @@ const AdminSettings = () => {
     }
 
     try {
-      const res = await axios.get("http://localhost:5000/admin/profile", {
+      const res = await api.get("/admin/profile", {
         headers: { "x-user-id": userId },
       });
       const data = res.data;
@@ -90,7 +91,7 @@ const AdminSettings = () => {
       if (user.password.trim() !== "") formData.append("password", user.password);
       if (user.imageFile) formData.append("profile_picture", user.imageFile);
 
-      const res = await axios.put("http://localhost:5000/admin/profile", formData, {
+      const res = await api.put("/admin/profile", formData, {
         headers: { "x-user-id": userId, "Content-Type": "multipart/form-data" },
       });
 

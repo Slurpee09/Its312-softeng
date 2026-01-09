@@ -21,48 +21,65 @@ if (!clientID || !clientSecret) {
           "http://localhost:5000/auth/google/callback",
         passReqToCallback: true,
       },
-      // use req so we can detect signup flow (req.session.googleSignup)
       async (req, accessToken, refreshToken, profile, done) => {
         try {
           const email = profile.emails?.[0]?.value;
           const googleId = profile.id;
           const fullname = profile.displayName || "";
 
-          if (!email) return done(new Error("No email returned by Google"), null);
+          if (!email) {
+            console.error("No email returned by Google");
+            return done(new Error("No email returned by Google"), false);
+          }
 
           // Try find by google_id first
           let user = await User.findByGoogleId(googleId);
-          if (user) return done(null, user);
+          if (user) {
+            console.log("User found by Google ID:", user.id);
+            return done(null, user, { message: "success" });
+          }
 
           // Then try by email (maybe user signed up via email/password)
           const userByEmail = await User.findByEmail(email);
-          const isSignup = (req.session && req.session.googleSignup) || (req.query && req.query.signup === 'true');
+          const isSignup =
+            (req.session && req.session.googleSignup) ||
+            (req.query && req.query.signup === "true");
 
           if (userByEmail) {
             // Associate Google ID if not set
             if (!userByEmail.google_id) {
-              try { await User.updateGoogleId(email, googleId); } catch (e) { /* ignore */ }
+              try {
+                await User.updateGoogleId(email, googleId);
+                console.log("Associated Google ID with existing user:", userByEmail.id);
+              } catch (e) {
+                console.error("Failed to update Google ID:", e);
+              }
             }
-            return done(null, userByEmail);
+            return done(null, userByEmail, { message: "success" });
           }
 
           if (isSignup) {
             // create new user for signup flow
-            if (req.session && req.session.googleSignup) delete req.session.googleSignup;
+            if (req.session && req.session.googleSignup)
+              delete req.session.googleSignup;
+
             user = await User.createUser({ fullname, email, googleId });
-            return done(null, user);
+            console.log("New user created via Google signup:", user.id);
+            return done(null, user, { message: "signup_success" });
           }
 
           // Not signup and not found => reject (frontend can prompt to sign up)
+          console.log("User not found and not signup flow");
           return done(null, false, { message: "Email not registered" });
         } catch (err) {
-          done(err, null);
+          console.error("Google OAuth error:", err);
+          return done(err, false);
         }
       }
     )
   );
 
-  console.log('Passport Google strategy registered');
+  console.log("Passport Google strategy registered");
 }
 
 passport.serializeUser((user, done) => done(null, user.id));
