@@ -20,7 +20,9 @@ const logActivity = async (action, details = "") => {
 function ProgramDetails() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { programName } = location.state || { programName: "" };
+
+  // Handle both data formats: programName (from Programs.jsx) or program object (from DetailedPrograms.jsx)
+  const programName = location.state?.programName || location.state?.program?.name || "";
 
   // Ensure the page is scrolled to the top when this component mounts or when the program changes
   // (fixes the issue where clicking "Apply" while scrolled down keeps the previous scroll position)
@@ -224,6 +226,12 @@ function ProgramDetails() {
   // SUBMISSION
   // -------------------------
   const handleSubmit = async () => {
+    // Validate required fields
+    if (!formData.phone || formData.phone.trim() === "") {
+      alert("Please enter your phone number. This field is required.");
+      return;
+    }
+
     const data = new FormData();
     data.append("program_name", programName);
     data.append("full_name", formData.fullName);
@@ -530,11 +538,12 @@ function ProgramDetails() {
             required
           />
           <input
-            type="text"
-            placeholder="Phone Number (optional)"
+            type="number"
+            placeholder="Phone Number"
             className="w-full border rounded-md px-4 py-2"
             value={formData.phone}
             onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+            required
           />
 
           <div>

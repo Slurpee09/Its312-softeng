@@ -1,6 +1,6 @@
 // AdminDashboard.jsx
 import React, { useState, useEffect } from "react";
-import { Menu, X, LayoutDashboard, Users, Settings, LogOut } from "lucide-react";
+import { Menu, X, LayoutDashboard, Users, Settings, LogOut, Users as UsersIcon, Clock, CheckCircle, XCircle } from "lucide-react";
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 import api from "../api/axios";
 
@@ -125,101 +125,187 @@ function AdminDashboard() {
     switch (activeSection) {
       case "dashboard":
         return (
-          <div>
+          <div className="max-w-7xl mx-auto px-6 py-6">
             {/* Stats */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
               {[
-                { label: "Total Applicants", value: stats.totalApplicants, color: "blue-800" },
-                { label: "Pending", value: stats.pendingVerifications, color: "yellow-500" },
-                { label: "Accepted", value: stats.accepted, color: "green-600" },
-                { label: "Rejected", value: stats.rejected, color: "red-600" },
+                { 
+                  label: "Total Applicants", 
+                  value: stats.totalApplicants, 
+                  color: "blue", 
+                  icon: UsersIcon,
+                  bgColor: "bg-blue-50",
+                  iconColor: "text-blue-600"
+                },
+                { 
+                  label: "Pending", 
+                  value: stats.pendingVerifications, 
+                  color: "yellow", 
+                  icon: Clock,
+                  bgColor: "bg-yellow-50",
+                  iconColor: "text-yellow-600"
+                },
+                { 
+                  label: "Accepted", 
+                  value: stats.accepted, 
+                  color: "green", 
+                  icon: CheckCircle,
+                  bgColor: "bg-green-50",
+                  iconColor: "text-green-600"
+                },
+                { 
+                  label: "Rejected", 
+                  value: stats.rejected, 
+                  color: "red", 
+                  icon: XCircle,
+                  bgColor: "bg-red-50",
+                  iconColor: "text-red-600"
+                },
               ].map(stat => (
-                <div key={stat.label} className={`bg-white rounded-xl shadow p-4 border-l-4 border-${stat.color}`}>
-                  <div className="text-sm text-gray-500">{stat.label}</div>
-                  <div className={`text-2xl font-bold text-${stat.color}`}>{stat.value}</div>
+                <div key={stat.label} className="bg-white rounded-xl shadow-md p-6 flex flex-col gap-2 hover:shadow-lg transition-shadow duration-200">
+                  <div className="flex items-center justify-between">
+                    <div className={`p-3 rounded-lg ${stat.bgColor}`}>
+                      <stat.icon className={`w-6 h-6 ${stat.iconColor}`} />
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-gray-500 text-sm font-medium">{stat.label}</p>
+                    <p className={`text-3xl font-bold text-${stat.color}-600`}>{stat.value}</p>
+                  </div>
                 </div>
               ))}
             </div>
 
             {/* Charts */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
               {/* Monthly Applicants */}
-              <div className="bg-white rounded-xl shadow p-6">
-                <h3 className="text-lg font-semibold text-blue-800 mb-3">Monthly Applicants</h3>
+              <div className="bg-white rounded-xl shadow-md p-6">
+                <h3 className="text-lg font-semibold text-blue-800 mb-4">Monthly Applicants</h3>
                 {stats.monthlyApplicants.length === 0 ? (
-                  <div className="h-44 bg-gray-50 rounded flex items-center justify-center text-gray-400 text-xs">
-                    No data
+                  <div className="h-64 bg-gray-50 rounded-lg flex items-center justify-center text-gray-400">
+                    <div className="text-center">
+                      <div className="text-4xl mb-2">📊</div>
+                      <p>No data available</p>
+                    </div>
                   </div>
                 ) : (
-                  <ResponsiveContainer width="100%" height={180}>
-                    <BarChart data={stats.monthlyApplicants}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="month" />
-                      <YAxis />
-                      <Tooltip />
-                      <Bar dataKey="count" fill="#4f46e5" barSize={18} />
+                  <ResponsiveContainer width="100%" height={250}>
+                    <BarChart data={stats.monthlyApplicants} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                      <XAxis 
+                        dataKey="month" 
+                        tick={{ fontSize: 12 }}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <YAxis 
+                        tick={{ fontSize: 12 }}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: '#fff',
+                          border: 'none',
+                          borderRadius: '8px',
+                          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                        }}
+                      />
+                      <Bar 
+                        dataKey="count" 
+                        fill="#4f46e5" 
+                        radius={[4, 4, 0, 0]}
+                        barSize={20}
+                      />
                     </BarChart>
                   </ResponsiveContainer>
                 )}
               </div>
 
               {/* Program Distribution */}
-              <div className="bg-white rounded-xl shadow p-6">
-                <h3 className="text-lg font-semibold text-blue-800 mb-3">Program Distribution</h3>
+              <div className="bg-white rounded-xl shadow-md p-6">
+                <h3 className="text-lg font-semibold text-blue-800 mb-4">Program Distribution</h3>
                 {(() => {
                   const programData = (stats.programDistribution || []).filter(e => {
                     const name = (e.program || '').toString();
-                    if (!name) return false;
+                    if (!name || name === 'undefined') return false;
                     if (['Incomplete requirements', 'Docs Awaiting Review', 'Awaiting review'].includes(name)) return false;
                     return Number(e.count) > 0;
                   });
 
                   if (!programData || programData.length === 0) {
                     return (
-                      <div className="h-44 bg-gray-50 rounded flex items-center justify-center text-gray-400 text-xs">
-                        No data
+                      <div className="h-64 bg-gray-50 rounded-lg flex items-center justify-center text-gray-400">
+                        <div className="text-center">
+                          <div className="text-4xl mb-2">📈</div>
+                          <p>No data available</p>
+                        </div>
                       </div>
                     );
                   }
 
                   return (
-                    <ResponsiveContainer width="100%" height={180}>
-                      <PieChart>
-                        <Pie
-                          data={programData}
-                          dataKey="count"
-                          nameKey="program"
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={30}
-                          outerRadius={60}
-                          label
-                        >
-                          {programData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                          ))}
-                        </Pie>
-                        <Tooltip />
-                        <Legend />
-                      </PieChart>
-                    </ResponsiveContainer>
+                    <div>
+                      <ResponsiveContainer width="100%" height={200}>
+                        <PieChart>
+                          <Pie
+                            data={programData}
+                            dataKey="count"
+                            nameKey="program"
+                            cx="50%"
+                            cy="45%"
+                            innerRadius={40}
+                            outerRadius={80}
+                            paddingAngle={2}
+                          >
+                            {programData.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip 
+                            formatter={(value, name) => [`${value} applicants`, name]}
+                            contentStyle={{ 
+                              backgroundColor: '#fff',
+                              border: 'none',
+                              borderRadius: '8px',
+                              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                            }}
+                          />
+                        </PieChart>
+                      </ResponsiveContainer>
+                      <div className="mt-4 flex flex-wrap justify-center gap-4">
+                        {programData.map((entry, index) => (
+                          <div key={entry.program} className="flex items-center gap-2">
+                            <div 
+                              className="w-3 h-3 rounded-full" 
+                              style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                            ></div>
+                            <span className="text-sm text-gray-600">{entry.program}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   );
                 })()}
               </div>
             </div>
 
             {/* Quick Actions */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="bg-white rounded-xl shadow p-6">
-                <h3 className="text-lg font-semibold text-blue-800 mb-3">Quick Actions</h3>
-                <div className="flex flex-wrap gap-3">
-                  <button onClick={() => setActiveSection("applicants")} className="px-3 py-2 bg-blue-700 text-white rounded hover:bg-blue-600">
-                    Applicants
-                  </button>
-                  <button onClick={() => setActiveSection("logs")} className="px-3 py-2 bg-gray-200 rounded hover:bg-gray-300">
-                    Activity Logs
-                  </button>
-                </div>
+            <div className="bg-white rounded-xl shadow-md p-6">
+              <h3 className="text-lg font-semibold text-blue-800 mb-4">Quick Actions</h3>
+              <div className="flex flex-wrap gap-3">
+                <button 
+                  onClick={() => setActiveSection("applicants")} 
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors duration-200"
+                >
+                  View Applicants
+                </button>
+                <button 
+                  onClick={() => setActiveSection("logs")} 
+                  className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors duration-200"
+                >
+                  Activity Logs
+                </button>
               </div>
             </div>
           </div>
@@ -287,7 +373,11 @@ function AdminDashboard() {
             <img src={adminPicture} className="w-10 h-10 rounded-full border" />
           </div>
         </header>
-        <main className="flex-1 p-4 overflow-y-auto">{renderSection()}</main>
+        <main className="flex-1 overflow-y-auto bg-gray-50">
+          <div className="max-w-7xl mx-auto px-6 py-6">
+            {renderSection()}
+          </div>
+        </main>
       </div>
     </div>
   );

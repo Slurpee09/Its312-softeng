@@ -13,6 +13,7 @@ function Navbar() {
   const [mobileProfileOpen, setMobileProfileOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const pollIntervalRef = useRef(null);
+  const notificationRef = useRef(null);
 
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem("user"));
@@ -84,6 +85,23 @@ function Navbar() {
     window.addEventListener('openProfile', onOpenProfile);
     return () => window.removeEventListener('openProfile', onOpenProfile);
   }, []);
+
+  // Click outside to close notifications
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (notificationRef.current && !notificationRef.current.contains(event.target)) {
+        setShowNotifications(false);
+      }
+    };
+
+    if (showNotifications) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showNotifications]);
 
   const toggleProfile = () => setShowProfile(!showProfile);
 
@@ -197,7 +215,17 @@ function Navbar() {
             {user ? (
               <>
                 <div className="flex items-center gap-3">
-                  <div className="relative cursor-pointer" onClick={toggleNotifications}>
+                  <div 
+                    ref={notificationRef}
+                    className="relative cursor-pointer" 
+                    onClick={toggleNotifications}
+                    onMouseEnter={() => {
+                      if (!showNotifications) {
+                        setShowNotifications(true);
+                        fetchNotifications();
+                      }
+                    }}
+                  >
                     <FaEnvelope size={28} className="text-gray-600 hover:text-blue-600" />
                     {notifications.length > 0 && (
                       <span className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full text-sm w-5 h-5 flex items-center justify-center">
@@ -273,9 +301,6 @@ function Navbar() {
                     />
                   ) : (
                     <FaUserCircle size={34} className="text-gray-600 hover:text-blue-600" />
-                  )}
-                  {notifications && notifications.filter(n => !n.read).length > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full text-xs w-3 h-3 flex items-center justify-center" />
                   )}
                 </div>
 

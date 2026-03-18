@@ -5,6 +5,7 @@ import Navbar from "./components/Navbar";
 import Home from "./components/Home";
 import Footer from "./components/Footer";
 import ProgramDetails from "./components/ProgramDetails";
+import DetailedPrograms from "./components/DetailedPrograms";
 import About from "./components/About";
 import Programs from "./components/Programs";
 import FAQ from "./components/FAQ";
@@ -53,6 +54,7 @@ function AnimatedRoutes() {
               <Route path="/" element={<Home />} />
               <Route path="/about" element={<About />} />
               <Route path="/program-details" element={<ProgramDetails />} />
+              <Route path="/detailed-programs" element={<DetailedPrograms />} />
               <Route path="/programs" element={<Programs />} />
               <Route path="/review-application" element={<ReviewApplication />} />
               <Route path="/my-drafts" element={<MyDrafts />} />

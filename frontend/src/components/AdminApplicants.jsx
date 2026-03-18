@@ -39,10 +39,10 @@ const FILE_LABELS = {
 };
 
 // Reusable button classes for consistent responsive UI
-const BTN_BASE = "inline-flex items-center gap-2 px-3 py-1 text-sm font-medium rounded-md focus:outline-none";
-const BTN_PRIMARY = `${BTN_BASE} bg-blue-600 text-white hover:bg-blue-700`;
-const BTN_SUCCESS = `${BTN_BASE} bg-green-50 text-green-700 hover:bg-green-100`;
-const BTN_DANGER = `${BTN_BASE} bg-red-50 text-red-700 hover:bg-red-100`;
+const BTN_BASE = "inline-flex items-center justify-center gap-2 px-2 py-1 text-sm font-medium rounded-md focus:outline-none transition-all duration-200";
+const BTN_SUCCESS = `${BTN_BASE} bg-green-600 text-white hover:bg-green-700 hover:shadow-md`;
+const BTN_DANGER = `${BTN_BASE} bg-red-600 text-white hover:bg-red-700 hover:shadow-md`;
+const BTN_SECONDARY = `${BTN_BASE} bg-gray-600 text-white hover:bg-gray-700 hover:shadow-md`;
 const BTN_ICON = "inline-flex items-center justify-center p-2 rounded-md bg-white border hover:bg-gray-50";
 
 import { useLocation } from 'react-router-dom';
@@ -427,207 +427,281 @@ function AdminApplicants() {
   };
 
   return (
-    <div className="bg-white rounded-xl shadow p-4 sm:p-6">
-      {/* HEADER */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-2">
-        <h2 className="text-xl font-semibold text-blue-800">Applicants <span className="text-sm text-gray-600 ml-2">({showTrash ? trashedApplicants.length : filtered.length})</span></h2>
+    <div className="max-w-7xl mx-auto px-6 py-6">
+      <div className="mb-6">
+        <h2 className="text-2xl font-bold text-blue-800 mb-4">
+          {showTrash ? "Trashed Applications" : "Applicant Management"}
+        </h2>
 
-        <div className="flex flex-wrap items-center gap-2 justify-end w-full md:w-auto md:max-w-4xl">
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search applicants..."
-            className="border rounded-md px-3 py-2 text-sm w-full md:flex-1"
-          />
+        {/* Filters and Search */}
+        <div className="bg-white rounded-xl shadow-md p-6 mb-6">
+          <div className="flex flex-col md:flex-row gap-4 items-start md:items-center">
+            <div className="flex-1">
+              <input
+                type="text"
+                placeholder="Search by name or email..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
 
-          <select
-            id="programFilter"
-            value={programFilter}
-            onChange={(e) => setProgramFilter(e.target.value)}
-            className="border px-3 py-2 rounded-md text-sm bg-white w-full md:w-48"
-          >
-            <option value="All">All Programs</option>
-            {programs.map(p => <option key={p} value={p}>{p}</option>)}
-          </select>
+            <select
+              value={programFilter}
+              onChange={(e) => setProgramFilter(e.target.value)}
+              className="rounded-lg border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent min-w-0 md:min-w-64"
+            >
+              <option value="All">All Programs</option>
+              {programs.map(p => <option key={p} value={p}>{p}</option>)}
+            </select>
 
-          <select
-            id="statusFilter"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="border px-3 py-2 rounded-md text-sm bg-white w-full md:w-36"
-          >
-            <option value="All">All</option>
-            <option value="Pending">Pending</option>
-            <option value="Accepted">Accepted</option>
-            <option value="Rejected">Rejected</option>
-          </select>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="rounded-lg border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent min-w-0 md:min-w-36"
+            >
+              <option value="All">All Status</option>
+              <option value="Pending">Pending</option>
+              <option value="Accepted">Accepted</option>
+              <option value="Rejected">Rejected</option>
+            </select>
 
-          {!remarkData && (
-            <div className="flex items-center md:justify-end">
+            {!remarkData && (
               <button
-                className={`${BTN_ICON} ml-1`}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors duration-200"
                 onClick={async () => { const next = !showTrash; setShowTrash(next); if (next) await fetchTrash(); }}
-                aria-label={showTrash ? 'Back to Applicants' : 'Open Trash Bin'}
               >
                 <Trash2 size={16} />
-                <span className="hidden sm:inline text-sm">{showTrash ? 'Back' : 'Trash'}</span>
+                <span>{showTrash ? 'Back to Applicants' : 'Trash Bin'}</span>
               </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
-      </div>
 
       {/* DESKTOP TABLE */}
-      <div className="hidden md:block overflow-x-auto w-full">
+      <div className="hidden md:block">
         {showTrash ? (
-          <table className="w-full text-left border table-fixed">
-            <thead className="bg-blue-800 text-white">
-              <tr>
-                <th className="p-2 w-3/12">Name</th>
-                <th className="p-2 w-3/12">Email</th>
-                <th className="p-2 w-2/12">Program</th>
-                <th className="p-2 w-2/12">Deleted At</th>
-                <th className="p-2 w-1/12">Original ID</th>
-                <th className="p-2 w-1/12 text-center">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {trashedApplicants.map(t => (
-                <tr key={t.id} className="border-b hover:bg-gray-50">
-                  <td className="p-2">{t.full_name || (t.data && t.data.full_name) || '-'}</td>
-                  <td className="p-2">{t.email || (t.data && t.data.email) || '-'}</td>
-                  <td className="p-2">{t.program_name || (t.data && t.data.program_name) || '-'}</td>
-                  <td className="p-2">{t.deleted_at}</td>
-                  <td className="p-2">{t.original_id}</td>
-                  <td className="p-2 text-center flex flex-col sm:flex-row items-center gap-2" onClick={e => e.stopPropagation()}>
-                    <button onClick={() => restoreTrashed(t.id)} className="w-full sm:w-auto px-2 py-1 bg-green-600 text-white rounded">Restore</button>
-                    <button onClick={() => {
-                        if (!window.confirm('Permanently delete this trashed application? This cannot be undone.')) return;
-                        permanentlyDelete(t.id);
-                      }}
-                      className="w-full sm:w-auto px-2 py-1 bg-red-600 text-white rounded"
-                    >Delete Permanently</button>
-                  </td>
+          <div className="bg-white rounded-xl shadow-md overflow-hidden">
+            <table className="w-full text-left">
+              <thead className="bg-blue-800 text-white">
+                <tr>
+                  <th className="px-6 py-3 text-left font-semibold">Name</th>
+                  <th className="px-6 py-3 text-left font-semibold">Email</th>
+                  <th className="px-6 py-3 text-left font-semibold">Program</th>
+                  <th className="px-6 py-3 text-left font-semibold">Deleted At</th>
+                  <th className="px-6 py-3 text-left font-semibold">Original ID</th>
+                  <th className="px-6 py-3 text-center font-semibold w-32">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <table className="w-full text-left border">
-            <thead className="bg-blue-800 text-white">
-              <tr>
-                <th className="p-2">Name</th>
-                <th className="p-2">Email</th>
-                <th className="p-2">Phone</th>
-                <th className="p-2">Program</th>
-                <th className="p-2">Status</th>
-                <th className="p-2 text-center">Documents</th>
-                <th className="p-2 text-center">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map(a => {
-                const isLocked = a.status === "Accepted" || a.status === "Rejected";
-                return (
-                  <tr key={a.id} className="border-b hover:bg-gray-50 cursor-pointer" onClick={() => setShowView(a)}>
-                    <td className="p-2">{a.full_name}</td>
-                    <td className="p-2">{a.email}</td>
-                    <td className="p-2">{a.phone || "-"}</td>
-                    <td className="p-2">{a.program_name}</td>
-                    <td className={`p-2 font-medium ${
-                      a.status === "Accepted"
-                        ? "text-green-600"
-                        : a.status === "Rejected"
-                          ? "text-red-600"
-                          : "text-yellow-600"
-                    }`}>
-                      {a.status}
-                    </td>
-                    <td className="p-2 text-center">{FILE_COLUMNS.filter(f => a[f]).length}</td>
-                    <td className="p-2 text-center flex justify-center gap-2" onClick={e => e.stopPropagation()}>
-                      <button disabled={isLocked} onClick={() => acceptRejectApplicant(a.id, "Accepted")}
-                        title={isLocked ? "Actions locked for accepted or rejected applicants" : "Accept"}
-                        className={`${BTN_SUCCESS} disabled:opacity-50 disabled:cursor-not-allowed`}>
-                        <Check size={14} />
-                        <span className="hidden sm:inline">Accept</span>
-                      </button>
-                      <button disabled={isLocked} onClick={() => acceptRejectApplicant(a.id, "Rejected")}
-                        title={isLocked ? "Actions locked for accepted or rejected applicants" : "Reject"}
-                        className={`${BTN_DANGER} disabled:opacity-50 disabled:cursor-not-allowed`}>
-                        <XCircle size={14} />
-                        <span className="hidden sm:inline">Reject</span>
-                      </button>
-                      <button disabled={isLocked} onClick={() => confirmDelete(a.id)}
-                        title={isLocked ? "Actions locked for accepted or rejected applicants" : "Delete applicant"}
-                        className={`${BTN_ICON} disabled:opacity-50 disabled:cursor-not-allowed`}>
-                        <Trash2 size={16} />
-                      </button>
+              </thead>
+              <tbody>
+                {trashedApplicants.length === 0 ? (
+                  <tr>
+                    <td colSpan="6" className="px-6 py-8 text-center text-gray-500">
+                      No trashed applications found
                     </td>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                ) : (
+                  trashedApplicants.map(t => (
+                    <tr key={t.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors duration-200">
+                      <td className="px-6 py-3">{t.full_name || (t.data && t.data.full_name) || '-'}</td>
+                      <td className="px-6 py-3">{t.email || (t.data && t.data.email) || '-'}</td>
+                      <td className="px-6 py-3">{t.program_name || (t.data && t.data.program_name) || 'Not Specified'}</td>
+                      <td className="px-6 py-3">{t.deleted_at}</td>
+                      <td className="px-6 py-3">{t.original_id}</td>
+                      <td className="px-6 py-3 text-center w-32" onClick={e => e.stopPropagation()}>
+                        <div className="flex justify-center gap-1">
+                          <button 
+                            onClick={() => restoreTrashed(t.id)} 
+                            className={`${BTN_SUCCESS}`}
+                            title="Restore"
+                          >
+                            Restore
+                          </button>
+                          <button 
+                            onClick={() => {
+                              if (!window.confirm('Permanently delete this trashed application? This cannot be undone.')) return;
+                              permanentlyDelete(t.id);
+                            }}
+                            className={`${BTN_DANGER}`}
+                            title="Delete Permanently"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="bg-white rounded-xl shadow-md overflow-hidden">
+            <table className="w-full text-left">
+              <thead className="bg-blue-800 text-white">
+                <tr>
+                  <th className="px-6 py-3 text-left font-semibold">Name</th>
+                  <th className="px-6 py-3 text-left font-semibold">Email</th>
+                  <th className="px-6 py-3 text-left font-semibold">Phone</th>
+                  <th className="px-6 py-3 text-left font-semibold">Program</th>
+                  <th className="px-6 py-3 text-left font-semibold">Status</th>
+                  <th className="px-6 py-3 text-center font-semibold">Documents</th>
+                  <th className="px-6 py-3 text-center font-semibold w-32">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.length === 0 ? (
+                  <tr>
+                    <td colSpan="7" className="px-6 py-8 text-center text-gray-500">
+                      No applicants found
+                    </td>
+                  </tr>
+                ) : (
+                  filtered.map(a => {
+                    const isLocked = a.status === "Accepted" || a.status === "Rejected";
+                    return (
+                      <tr key={a.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors duration-200 cursor-pointer" onClick={() => setShowView(a)}>
+                        <td className="px-6 py-3">{a.full_name}</td>
+                        <td className="px-6 py-3">{a.email}</td>
+                        <td className="px-6 py-3">{a.phone || "-"}</td>
+                        <td className="px-6 py-3">{a.program_name || "Not Specified"}</td>
+                        <td className={`px-6 py-3 font-medium ${
+                          a.status === "Accepted"
+                            ? "text-green-600"
+                            : a.status === "Rejected"
+                              ? "text-red-600"
+                              : "text-yellow-600"
+                        }`}>
+                          {a.status}
+                        </td>
+                        <td className="px-6 py-3 text-center">{FILE_COLUMNS.filter(f => a[f]).length}</td>
+                        <td className="px-6 py-3 text-center w-32" onClick={e => e.stopPropagation()}>
+                          <div className="flex justify-center gap-1">
+                            <button 
+                              disabled={isLocked} 
+                              onClick={() => acceptRejectApplicant(a.id, "Accepted")}
+                              title={isLocked ? "Actions locked for accepted or rejected applicants" : "Accept"}
+                              className={`${BTN_SUCCESS} disabled:opacity-50 disabled:cursor-not-allowed`}
+                            >
+                              Accept
+                            </button>
+                            <button 
+                              disabled={isLocked} 
+                              onClick={() => acceptRejectApplicant(a.id, "Rejected")}
+                              title={isLocked ? "Actions locked for accepted or rejected applicants" : "Reject"}
+                              className={`${BTN_DANGER} disabled:opacity-50 disabled:cursor-not-allowed`}
+                            >
+                              Reject
+                            </button>
+                            <button
+                              disabled={isLocked}
+                              onClick={() => confirmDelete(a.id)}
+                              title={isLocked ? "Actions locked for accepted or rejected applicants" : "Delete"}
+                              className={`${BTN_SECONDARY} disabled:opacity-50 disabled:cursor-not-allowed`}
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
       {/* MOBILE LIST */}
-      <div className="md:hidden space-y-3">
+      <div className="md:hidden space-y-4">
         {showTrash ? (
-          trashedApplicants.map(t => (
-            <div key={t.id} className="border rounded-lg p-4 shadow-sm bg-white">
-              <div className="font-semibold text-blue-600 text-lg">{t.full_name || (t.data && t.data.full_name)}</div>
-              <div className="text-sm text-gray-600">{t.email || (t.data && t.data.email)}</div>
-              <div className="mt-2 flex justify-end gap-2">
-                <button onClick={() => restoreTrashed(t.id)} className="px-2 py-1 bg-green-600 text-white rounded">Restore</button>
-                <button onClick={() => {
-                    if (!window.confirm('Permanently delete this trashed application? This cannot be undone.')) return;
-                    permanentlyDelete(t.id);
-                  }}
-                  className="px-2 py-1 bg-red-600 text-white rounded"
-                >Delete Permanently</button>
-              </div>
+          trashedApplicants.length === 0 ? (
+            <div className="bg-white rounded-xl shadow-md p-8 text-center text-gray-500">
+              No trashed applications found
             </div>
-          ))
+          ) : (
+            trashedApplicants.map(t => (
+              <div key={t.id} className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow duration-200">
+                <div className="font-semibold text-blue-800 text-lg mb-2">{t.full_name || (t.data && t.data.full_name) || 'Unknown'}</div>
+                <div className="text-gray-600 mb-1">{t.email || (t.data && t.data.email) || 'No email'}</div>
+                <div className="text-gray-500 text-sm mb-4">{t.program_name || (t.data && t.data.program_name) || 'Not Specified'}</div>
+                <div className="text-gray-400 text-xs mb-4">Deleted: {t.deleted_at}</div>
+                <div className="flex gap-3">
+                  <button 
+                    onClick={() => restoreTrashed(t.id)} 
+                    className={`${BTN_SUCCESS} flex-1`}
+                  >
+                    Restore
+                  </button>
+                  <button 
+                    onClick={() => {
+                      if (!window.confirm('Permanently delete this trashed application? This cannot be undone.')) return;
+                      permanentlyDelete(t.id);
+                    }}
+                    className={`${BTN_DANGER} flex-1`}
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            ))
+          )
         ) : (
-          <>
-            {filtered.map(a => {
+          filtered.length === 0 ? (
+            <div className="bg-white rounded-xl shadow-md p-8 text-center text-gray-500">
+              No applicants found
+            </div>
+          ) : (
+            filtered.map(a => {
               const isLocked = a.status === "Accepted" || a.status === "Rejected";
               return (
                 <div key={a.id}
-                  className="border rounded-lg p-4 shadow-sm bg-white cursor-pointer hover:bg-gray-50"
+                  className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow duration-200 cursor-pointer"
                   onClick={() => setShowView(a)}>
-                  <div className="font-semibold text-blue-600 text-lg">{a.full_name}</div>
-                  <div className={`mt-1 font-medium ${
+                  <div className="font-semibold text-blue-800 text-lg mb-2">{a.full_name}</div>
+                  <div className={`mb-1 font-medium ${
                     a.status === "Accepted"
                       ? "text-green-600"
                       : a.status === "Rejected"
                         ? "text-red-600"
                         : "text-yellow-600"
                   }`}>{a.status}</div>
-                  <div className="mt-2 flex flex-col sm:flex-row justify-end gap-2" onClick={e => e.stopPropagation()}>
-                    <button disabled={isLocked} onClick={() => acceptRejectApplicant(a.id, "Accepted")}
+                  <div className="text-gray-600 mb-1">{a.email}</div>
+                  <div className="text-gray-500 text-sm mb-4">{a.program_name || "Not Specified"}</div>
+                  <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:gap-2" onClick={e => e.stopPropagation()}>
+                    <button 
+                      disabled={isLocked} 
+                      onClick={() => acceptRejectApplicant(a.id, "Accepted")}
                       title={isLocked ? "Actions locked for accepted or rejected applicants" : "Accept"}
-                      className="w-full sm:w-auto px-3 py-2 bg-green-600 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
-                      <Check size={14} />
+                      className={`${BTN_SUCCESS} w-full sm:flex-1 disabled:opacity-50 disabled:cursor-not-allowed`}
+                    >
+                      <Check size={16} />
                       <span>Accept</span>
                     </button>
-                    <button disabled={isLocked} onClick={() => acceptRejectApplicant(a.id, "Rejected")}
+                    <button 
+                      disabled={isLocked} 
+                      onClick={() => acceptRejectApplicant(a.id, "Rejected")}
                       title={isLocked ? "Actions locked for accepted or rejected applicants" : "Reject"}
-                      className="w-full sm:w-auto px-3 py-2 bg-red-600 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
-                      <XCircle size={14} />
+                      className={`${BTN_DANGER} w-full sm:flex-1 disabled:opacity-50 disabled:cursor-not-allowed`}
+                    >
+                      <XCircle size={16} />
                       <span>Reject</span>
                     </button>
-                    <button disabled={isLocked} onClick={() => confirmDelete(a.id)}
-                      title={isLocked ? "Actions locked for accepted or rejected applicants" : "Delete applicant"}
-                      className="w-full sm:w-auto px-3 py-2 bg-white border rounded disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center">
+                    <button
+                      disabled={isLocked}
+                      onClick={() => confirmDelete(a.id)}
+                      title={isLocked ? "Actions locked for accepted or rejected applicants" : "Delete"}
+                      className={`${BTN_SECONDARY} w-full sm:flex-1 disabled:opacity-50 disabled:cursor-not-allowed`}
+                    >
                       <Trash2 size={16} />
+                      <span>Delete</span>
                     </button>
                   </div>
                 </div>
               );
-            })}
-          </>
+            })
+          )
         )}
       </div>
 
@@ -655,7 +729,9 @@ function AdminApplicants() {
                         className="text-gray-600 hover:text-gray-800 mb-1">
                         <Eye size={24} />
                       </button>
-                    ) : <div className="text-xs text-gray-500 italic mb-1">No file uploaded</div>}
+                    ) : (
+                      <div className="text-xs text-gray-500 italic mb-1">No file uploaded</div>
+                    )}
 
                     {fileURL && (
                       <div className="text-xs text-gray-400 truncate w-full text-center mb-2">
@@ -664,17 +740,17 @@ function AdminApplicants() {
                     )}
 
                     {fileURL && (
-                      <div className="flex gap-2 mt-2">
+                      <div className="flex justify-between gap-2 mt-2">
                         <button
                           onClick={() => verifyFile(showView.id, f)}
-                          className={`px-3 py-1 text-xs rounded font-medium ${verified ? "bg-yellow-500 text-white hover:bg-yellow-600" : "bg-green-500 text-white hover:bg-green-600"}`}
+                          className={`${verified ? "bg-yellow-600 text-white hover:bg-yellow-700 hover:shadow-md" : BTN_SUCCESS.replace("bg-green-600", "bg-green-600")} px-3 py-1 text-sm font-medium rounded-md focus:outline-none transition-all duration-200 flex-1`}
                         >
                           {verified ? "Unverify" : "Verify"}
                         </button>
 
                         <button
                           onClick={() => showRemark(showView.id, f)}
-                          className="px-3 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-700"
+                          className={`${BTN_DANGER} flex-1`}
                         >
                           Remark
                         </button>
@@ -696,7 +772,7 @@ function AdminApplicants() {
                       <div className="relative mr-2">
                         <button
                           onClick={() => setShowVerifyAllConfirm(prev => !prev)}
-                          className="px-3 py-1 bg-blue-600 text-white rounded text-sm"
+                          className={BTN_PRIMARY}
                         >
                           Re-verify All
                         </button>
@@ -705,15 +781,15 @@ function AdminApplicants() {
                           <div className="absolute bottom-full mb-2 right-0 bg-white border rounded p-3 shadow text-sm w-64 z-50">
                             <div className="mb-3 text-gray-700">All uploaded files are already verified. Re-verify all files?</div>
                             <div className="flex justify-end gap-2">
-                              <button onClick={() => setShowVerifyAllConfirm(false)} className="px-2 py-1 bg-gray-200 rounded">Cancel</button>
-                              <button onClick={() => verifyAllFiles()} className="px-2 py-1 bg-blue-600 text-white rounded">Confirm</button>
+                              <button onClick={() => setShowVerifyAllConfirm(false)} className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 transition-all duration-200">Cancel</button>
+                              <button onClick={() => verifyAllFiles()} className={BTN_PRIMARY}>Confirm</button>
                             </div>
                           </div>
                         )}
                       </div>
                     )}
 
-                    <button onClick={() => setShowView(null)} className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">Close</button>
+                    <button onClick={() => setShowView(null)} className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 transition-all duration-200">Close</button>
                   </>
                 );
               })()}
@@ -739,13 +815,13 @@ function AdminApplicants() {
             <div className="flex justify-center gap-2">
               <button
                 onClick={() => setRemarkData(null)}
-                className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
+                className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 transition-all duration-200"
               >
                 Cancel
               </button>
               <button
                 onClick={saveRemark}
-                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+                className={BTN_DANGER}
               >
                 Save
               </button>
@@ -761,13 +837,14 @@ function AdminApplicants() {
             <h3 className="text-lg font-semibold mb-2">Confirm Delete</h3>
             <p className="text-gray-600 mb-4">Move this applicant to Trash Bin? You can restore it within 30 days.</p>
             <div className="flex justify-center gap-3">
-              <button onClick={() => setDeleteId(null)} className="px-4 py-2 bg-gray-200 rounded">Cancel</button>
-              <button onClick={doDelete} className="px-4 py-2 bg-red-600 text-white rounded">Delete</button>
+              <button onClick={() => setDeleteId(null)} className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 transition-all duration-200">Cancel</button>
+              <button onClick={doDelete} className={BTN_DANGER}>Delete</button>
             </div>
           </div>
         </div>
       )}
     </div>
+  </div>
   );
 }
 
