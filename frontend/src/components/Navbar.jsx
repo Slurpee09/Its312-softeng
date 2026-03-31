@@ -126,6 +126,7 @@ function Navbar() {
             <Link to="/" className="transition-colors duration-300 hover:text-blue-600">Home</Link>
             <Link to="/about" className="transition-colors duration-300 hover:text-blue-600">About</Link>
             <Link to="/programs" className="transition-colors duration-300 hover:text-blue-600">Programs</Link>
+            <Link to="/alumni" className="transition-colors duration-300 hover:text-blue-600">Alumni</Link>
             <Link to="/faqs" className="transition-colors duration-300 hover:text-blue-600">FAQ's</Link>
           </div>
 
@@ -334,6 +335,7 @@ function Navbar() {
             <Link onClick={() => setMobileOpen(false)} to="/" className="block px-2 py-2 rounded hover:bg-gray-100">Home</Link>
             <Link onClick={() => setMobileOpen(false)} to="/about" className="block px-2 py-2 rounded hover:bg-gray-100">About</Link>
             <Link onClick={() => setMobileOpen(false)} to="/programs" className="block px-2 py-2 rounded hover:bg-gray-100">Programs</Link>
+            <Link onClick={() => setMobileOpen(false)} to="/alumni" className="block px-2 py-2 rounded hover:bg-gray-100">Alumni</Link>
             <Link onClick={() => setMobileOpen(false)} to="/faqs" className="block px-2 py-2 rounded hover:bg-gray-100">FAQ's</Link>
 
             {user ? null : (

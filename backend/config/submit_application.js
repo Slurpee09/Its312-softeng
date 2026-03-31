@@ -74,6 +74,11 @@ router.post("/", cpUpload, async (req, res) => {
     console.log('User role lookup result:', userRow);
     if (userRow && userRow.role === 'admin') return res.status(403).json({ message: "Admins cannot submit applications" });
 
+    // Validate core required fields for both new submissions and draft conversions
+    if (!body.phone || String(body.phone).trim() === "") {
+      return res.status(400).json({ message: "Phone number is required" });
+    }
+
     // If this request includes a draft_id, attempt to convert that draft into a submitted application
     if (body.draft_id) {
       const draftId = body.draft_id;
@@ -82,6 +87,9 @@ router.post("/", cpUpload, async (req, res) => {
       const [rows] = await db.query(`SELECT * FROM applications WHERE id = ? AND user_id = ? AND status = 'Draft' LIMIT 1`, [draftId, userId]);
       console.log('Draft lookup rows:', rows);
       if (!rows.length) return res.status(404).json({ message: 'Draft not found or not owned by user' });
+      const existingDraft = rows[0];
+      const hasPicture = filePaths.picture || existingDraft.picture;
+      if (!hasPicture) return res.status(400).json({ message: 'Formal picture is required to submit an application.' });
 
       // Build update similar to save-draft but set status to Pending (or Submitted)
       const fields = [];
@@ -113,6 +121,11 @@ router.post("/", cpUpload, async (req, res) => {
     const [existingApps] = await db.query("SELECT id FROM applications WHERE user_id = ? AND (status IS NULL OR status != 'Draft') LIMIT 1", [userId]);
     if (existingApps.length > 0) {
       return res.status(409).json({ message: "Only one submitted application allowed per account" });
+    }
+
+    // Validate picture is present for new submission
+    if (!filePaths.picture) {
+      return res.status(400).json({ message: "Formal picture is required for submission." });
     }
 
     // Insert into applications table including user_id, set status to 'Pending' so admins see it immediately

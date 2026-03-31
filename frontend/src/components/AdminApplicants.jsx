@@ -82,6 +82,44 @@ function AdminApplicants() {
     setTimeout(() => setToast(null), 3000);
   };
 
+  // Helper function to format deleted_at date to MM/DD/YYYY, HH:MM:SS AM/PM format
+  const formatDeletedDate = (dateString) => {
+    if (!dateString) return "N/A";
+    try {
+      const date = new Date(dateString);
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const year = date.getFullYear();
+      const hours = String(date.getHours() % 12 || 12).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      const seconds = String(date.getSeconds()).padStart(2, '0');
+      const ampm = date.getHours() >= 12 ? 'PM' : 'AM';
+      return `${month}/${day}/${year}, ${hours}:${minutes}:${seconds} ${ampm}`;
+    } catch (e) {
+      return "N/A";
+    }
+  };
+
+  // Helper function to calculate expected deletion date (30 days after deleted_at)
+  const getExpectedDeleteDate = (deletedAt) => {
+    if (!deletedAt) return "N/A";
+    try {
+      const date = new Date(deletedAt);
+      date.setDate(date.getDate() + 30);
+      return date.toLocaleString('en-US', { 
+        year: 'numeric', 
+        month: '2-digit', 
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true
+      });
+    } catch (e) {
+      return "N/A";
+    }
+  };
+
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -242,6 +280,23 @@ function AdminApplicants() {
   const confirmDelete = id => setDeleteId(id);
   const doDelete = async () => {
     try {
+      // Get applicant data before deletion to create notification and get user_id
+      const applicant = applicants.find(a => a.id === deleteId);
+      
+      if (applicant && applicant.user_id) {
+        try {
+          // Create a deletion notification for the user
+          await api.post(`/notifications/create-deletion-notification`, {
+            application_id: deleteId,
+            user_id: applicant.user_id,
+            program_name: applicant.program_name
+          });
+        } catch (notifErr) {
+          console.warn("Failed to create deletion notification:", notifErr);
+          // Don't block deletion if notification fails
+        }
+      }
+
       await api.delete(`/admin/applications/${deleteId}`);
       // Refresh both lists so trash shows the moved item
       await fetchTrash();
@@ -489,6 +544,7 @@ function AdminApplicants() {
                   <th className="px-6 py-3 text-left font-semibold">Email</th>
                   <th className="px-6 py-3 text-left font-semibold">Program</th>
                   <th className="px-6 py-3 text-left font-semibold">Deleted At</th>
+                  <th className="px-6 py-3 text-left font-semibold">Expected Delete</th>
                   <th className="px-6 py-3 text-left font-semibold">Original ID</th>
                   <th className="px-6 py-3 text-center font-semibold w-32">Actions</th>
                 </tr>
@@ -496,7 +552,7 @@ function AdminApplicants() {
               <tbody>
                 {trashedApplicants.length === 0 ? (
                   <tr>
-                    <td colSpan="6" className="px-6 py-8 text-center text-gray-500">
+                    <td colSpan="7" className="px-6 py-8 text-center text-gray-500">
                       No trashed applications found
                     </td>
                   </tr>
@@ -506,7 +562,8 @@ function AdminApplicants() {
                       <td className="px-6 py-3">{t.full_name || (t.data && t.data.full_name) || '-'}</td>
                       <td className="px-6 py-3">{t.email || (t.data && t.data.email) || '-'}</td>
                       <td className="px-6 py-3">{t.program_name || (t.data && t.data.program_name) || 'Not Specified'}</td>
-                      <td className="px-6 py-3">{t.deleted_at}</td>
+                      <td className="px-6 py-3">{formatDeletedDate(t.deleted_at)}</td>
+                      <td className="px-6 py-3 text-red-600 font-medium">{getExpectedDeleteDate(t.deleted_at)}</td>
                       <td className="px-6 py-3">{t.original_id}</td>
                       <td className="px-6 py-3 text-center w-32" onClick={e => e.stopPropagation()}>
                         <div className="flex justify-center gap-1">
@@ -578,25 +635,25 @@ function AdminApplicants() {
                         <td className="px-6 py-3 text-center w-32" onClick={e => e.stopPropagation()}>
                           <div className="flex justify-center gap-1">
                             <button 
-                              disabled={isLocked} 
+                              disabled={a.status === "Accepted" || a.status === "Rejected"} 
                               onClick={() => acceptRejectApplicant(a.id, "Accepted")}
-                              title={isLocked ? "Actions locked for accepted or rejected applicants" : "Accept"}
+                              title={a.status === "Accepted" || a.status === "Rejected" ? "Cannot accept after rejected or accepted" : "Accept"}
                               className={`${BTN_SUCCESS} disabled:opacity-50 disabled:cursor-not-allowed`}
                             >
                               Accept
                             </button>
                             <button 
-                              disabled={isLocked} 
+                              disabled={a.status === "Accepted" || a.status === "Rejected"} 
                               onClick={() => acceptRejectApplicant(a.id, "Rejected")}
-                              title={isLocked ? "Actions locked for accepted or rejected applicants" : "Reject"}
+                              title={a.status === "Accepted" || a.status === "Rejected" ? "Cannot reject after already rejected or accepted" : "Reject"}
                               className={`${BTN_DANGER} disabled:opacity-50 disabled:cursor-not-allowed`}
                             >
                               Reject
                             </button>
                             <button
-                              disabled={isLocked}
+                              disabled={a.status === "Accepted" || a.status === "Pending"}
                               onClick={() => confirmDelete(a.id)}
-                              title={isLocked ? "Actions locked for accepted or rejected applicants" : "Delete"}
+                              title={a.status === "Accepted" ? "Cannot delete accepted applications" : a.status === "Pending" ? "Cannot delete pending applications" : "Delete"}
                               className={`${BTN_SECONDARY} disabled:opacity-50 disabled:cursor-not-allowed`}
                             >
                               <Trash2 size={18} />
@@ -625,8 +682,9 @@ function AdminApplicants() {
               <div key={t.id} className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow duration-200">
                 <div className="font-semibold text-blue-800 text-lg mb-2">{t.full_name || (t.data && t.data.full_name) || 'Unknown'}</div>
                 <div className="text-gray-600 mb-1">{t.email || (t.data && t.data.email) || 'No email'}</div>
-                <div className="text-gray-500 text-sm mb-4">{t.program_name || (t.data && t.data.program_name) || 'Not Specified'}</div>
-                <div className="text-gray-400 text-xs mb-4">Deleted: {t.deleted_at}</div>
+                <div className="text-gray-500 text-sm mb-2">{t.program_name || (t.data && t.data.program_name) || 'Not Specified'}</div>
+                <div className="text-gray-400 text-xs mb-1">Deleted: {formatDeletedDate(t.deleted_at)}</div>
+                <div className="text-red-600 text-xs font-medium mb-4">Expected Delete: {getExpectedDeleteDate(t.deleted_at)}</div>
                 <div className="flex gap-3">
                   <button 
                     onClick={() => restoreTrashed(t.id)} 
@@ -671,27 +729,27 @@ function AdminApplicants() {
                   <div className="text-gray-500 text-sm mb-4">{a.program_name || "Not Specified"}</div>
                   <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:gap-2" onClick={e => e.stopPropagation()}>
                     <button 
-                      disabled={isLocked} 
+                      disabled={a.status === "Accepted" || a.status === "Rejected"} 
                       onClick={() => acceptRejectApplicant(a.id, "Accepted")}
-                      title={isLocked ? "Actions locked for accepted or rejected applicants" : "Accept"}
+                      title={a.status === "Accepted" || a.status === "Rejected" ? "Cannot accept after rejected or accepted" : "Accept"}
                       className={`${BTN_SUCCESS} w-full sm:flex-1 disabled:opacity-50 disabled:cursor-not-allowed`}
                     >
                       <Check size={16} />
                       <span>Accept</span>
                     </button>
                     <button 
-                      disabled={isLocked} 
+                      disabled={a.status === "Accepted" || a.status === "Rejected"} 
                       onClick={() => acceptRejectApplicant(a.id, "Rejected")}
-                      title={isLocked ? "Actions locked for accepted or rejected applicants" : "Reject"}
+                      title={a.status === "Accepted" || a.status === "Rejected" ? "Cannot reject after already rejected or accepted" : "Reject"}
                       className={`${BTN_DANGER} w-full sm:flex-1 disabled:opacity-50 disabled:cursor-not-allowed`}
                     >
                       <XCircle size={16} />
                       <span>Reject</span>
                     </button>
                     <button
-                      disabled={isLocked}
+                      disabled={a.status === "Accepted" || a.status === "Pending"}
                       onClick={() => confirmDelete(a.id)}
-                      title={isLocked ? "Actions locked for accepted or rejected applicants" : "Delete"}
+                      title={a.status === "Accepted" ? "Cannot delete accepted applications" : a.status === "Pending" ? "Cannot delete pending applications" : "Delete"}
                       className={`${BTN_SECONDARY} w-full sm:flex-1 disabled:opacity-50 disabled:cursor-not-allowed`}
                     >
                       <Trash2 size={16} />

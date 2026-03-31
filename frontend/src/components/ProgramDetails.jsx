@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import Toast from "./Toast";
 
 // -------------------------
 // LOG USER ACTIVITY  ⭐ ADDED
@@ -66,6 +67,7 @@ function ProgramDetails() {
   // draft loading state - used to prevent opening the Review modal before draft data is loaded
   const [draftLoading, setDraftLoading] = useState(false);
   const [pendingOpenReview, setPendingOpenReview] = useState(false);
+  const [toast, setToast] = useState({ message: "", type: "success" });
 
   const maxFileSize = 50 * 1024 * 1024; // 50MB
   const acceptedTypes = ["application/pdf", "image/jpeg", "image/png"];
@@ -79,11 +81,11 @@ function ProgramDetails() {
     let validFiles = [];
     for (let file of files) {
       if (!acceptedTypes.includes(file.type)) {
-        alert(`Invalid file type: ${file.name}`);
+        setToast({ message: `Invalid file type: ${file.name}`, type: "error" });
         continue;
       }
       if (file.size > maxFileSize) {
-        alert(`File too large (max 5MB): ${file.name}`);
+        setToast({ message: `File too large (max 5MB): ${file.name}`, type: "error" });
         continue;
       }
       validFiles.push(file);
@@ -107,7 +109,7 @@ function ProgramDetails() {
     const prevFiles = Array.isArray(formData[name]) ? formData[name] : [];
     let updatedFiles = [...prevFiles, ...validFiles];
     if (updatedFiles.length > maxFiles) {
-      alert(`You can only upload up to ${maxFiles} files.`);
+      setToast({ message: `You can only upload up to ${maxFiles} files.`, type: "error" });
       updatedFiles = updatedFiles.slice(0, maxFiles);
     }
     setFormData((prev) => ({ ...prev, [name]: updatedFiles }));
@@ -227,8 +229,17 @@ function ProgramDetails() {
   // -------------------------
   const handleSubmit = async () => {
     // Validate required fields
+    const missingFiles = validateRequired();
     if (!formData.phone || formData.phone.trim() === "") {
-      alert("Please enter your phone number. This field is required.");
+      setToast({ message: "Please enter your phone number. This field is required.", type: "error" });
+      return;
+    }
+    if (!formData.picture) {
+      setToast({ message: "Please upload your formal picture (image 2). This field is required.", type: "error" });
+      return;
+    }
+    if (missingFiles.length > 0) {
+      setToast({ message: "Please fill all required documents before submitting: " + missingFiles.join(", "), type: "error" });
       return;
     }
 
@@ -281,18 +292,18 @@ function ProgramDetails() {
       });
       const result = await res.json();
       if (!res.ok) {
-        alert(`Error: ${result.message || "Unknown error"}`);
+        setToast({ message: `Error: ${result.message || "Unknown error"}`, type: "error" });
         return;
       }
 
       // ✅ ADDED - log activity exactly like login activity
       await logActivity("Application Submitted", `User submitted application for program: ${programName}`);
 
-      alert(result.message);
-      navigate("/programs");
+      setToast({ message: result.message, type: "success" });
+      setTimeout(() => navigate("/programs"), 1500);
     } catch (err) {
       console.error(err);
-      alert("Submission failed.");
+      setToast({ message: "Submission failed.", type: "error" });
     }
   };
 
@@ -347,16 +358,16 @@ function ProgramDetails() {
       });
       const result = await res.json();
       if (!res.ok) {
-        alert(`Error saving draft: ${result.message || "Unknown error"}`);
+        setToast({ message: `Error saving draft: ${result.message || "Unknown error"}`, type: "error" });
         return;
       }
-      alert(result.message || "Draft saved");
+      setToast({ message: result.message || "Draft saved", type: "success" });
       // optionally navigate or close modal
       setShowModal(false);
       if (result.draftId) setDraftId(result.draftId);
     } catch (err) {
       console.error(err);
-      alert("Failed to save draft.");
+      setToast({ message: "Failed to save draft.", type: "error" });
     }
   };
 
@@ -583,7 +594,10 @@ function ProgramDetails() {
         </div>
 
         {/* Documents */}
-        <h2 className="text-xl font-semibold text-blue-800 mt-6 mb-4">Upload Documents</h2>
+        <div className="mt-6 mb-4">
+          <h2 className="text-xl font-semibold text-blue-800">Upload Documents</h2>
+          <p className="text-sm text-gray-600">Allowed File Types (.pdf, .jpg, .jpeg, .png)</p>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {renderFileInput("A. Letter of Intent", "letterOfIntent")}
           {renderFileInput("B. Résumé / CV", "resume")}
@@ -609,7 +623,7 @@ function ProgramDetails() {
                 <button
                   type="button"
                   onClick={handleSaveDraft}
-                  className="px-6 py-2 rounded-md bg-gray-600 text-white hover:bg-gray-700"
+                  className="px-6 py-2 rounded-md bg-light-blue-600 text-white hover:bg-light-blue-700"
                 >
                   Save Progress
                 </button>
@@ -723,13 +737,13 @@ function ProgramDetails() {
             </div>
 
               <div className="mt-6 flex justify-end gap-4">
-              <button onClick={() => setShowModal(false)} className="px-4 py-2 rounded-md border">Edit</button>
               <button onClick={handleSaveDraft} className="px-6 py-2 rounded-md bg-gray-400 text-white hover:bg-gray-500">Save Draft</button>
               <button onClick={handleSubmit} disabled={draftLoading} className={`px-6 py-2 rounded-md bg-blue-800 text-white ${draftLoading ? 'opacity-60 cursor-not-allowed' : ''}`}>{draftLoading ? 'Loading...' : 'Submit'}</button>
             </div>
           </div>
         </div>
       )}
+      <Toast message={toast.message} type={toast.type} onClose={() => setToast({ message: "", type: "success" })} />
     </main>
   );
 }

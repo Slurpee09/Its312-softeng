@@ -199,6 +199,7 @@ function AdminDashboard() {
                         tickLine={false}
                       />
                       <YAxis 
+                        allowDecimals={false}
                         tick={{ fontSize: 12 }}
                         axisLine={false}
                         tickLine={false}

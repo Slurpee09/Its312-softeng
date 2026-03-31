@@ -1,11 +1,13 @@
 import React, { useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
+import Toast from "./Toast";
 
 function ProfileModal({ user, onClose }) {
   const [formData, setFormData] = useState({ fullname: user?.fullname || "", email: user?.email || "", profile_picture: null });
   const [preview, setPreview] = useState(user?.profile_picture || null);
   const [loading, setLoading] = useState(false);
+  const [toast, setToast] = useState({ message: "", type: "success" });
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -52,11 +54,11 @@ function ProfileModal({ user, onClose }) {
       });
 
       localStorage.setItem("user", JSON.stringify(res.data.user));
-      alert("Profile updated successfully!");
-      onClose();
+      setToast({ message: "Profile updated successfully!", type: "success" });
+      setTimeout(() => onClose(), 1500);
     } catch (err) {
       console.error(err.response?.data || err.message);
-      alert("Failed to update profile.");
+      setToast({ message: "Failed to update profile.", type: "error" });
     } finally {
       setLoading(false);
     }
@@ -94,6 +96,7 @@ function ProfileModal({ user, onClose }) {
           </div>
         </form>
       </div>
+      <Toast message={toast.message} type={toast.type} onClose={() => setToast({ message: "", type: "success" })} />
     </div>
   );
 }

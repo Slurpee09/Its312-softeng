@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { useParams, useLocation, useNavigate } from "react-router-dom";
 import { FaFileAlt, FaFilePdf, FaImage, FaCheckCircle, FaUpload } from "react-icons/fa";
+import Toast from "./Toast";
 
 const DOCUMENTS = [
   { key: "letter_of_intent", label: "Letter of Intent" },
@@ -29,6 +30,7 @@ function ApplicationDetails() {
   const [verified, setVerified] = useState({});
   const [uploadingDoc, setUploadingDoc] = useState(null);
   const [fileInputs, setFileInputs] = useState({});
+  const [toast, setToast] = useState({ message: "", type: "success" });
   
 
   const user = JSON.parse(localStorage.getItem("user"));
@@ -89,7 +91,10 @@ function ApplicationDetails() {
   // collapsed UI removed for cleaner interface
 
   const handleResubmit = async (key) => {
-    if (!fileInputs[key]) return alert("Choose a file to upload");
+    if (!fileInputs[key]) {
+      setToast({ message: "Choose a file to upload", type: "error" });
+      return;
+    }
     setUploadingDoc(key);
     try {
       const fd = new FormData();
@@ -102,12 +107,12 @@ function ApplicationDetails() {
         withCredentials: true,
       });
 
-      alert(res.data.message || "Resubmitted successfully");
+      setToast({ message: res.data.message || "Resubmitted successfully", type: "success" });
       setFileInputs((p) => ({ ...p, [key]: null }));
       fetchDetails();
     } catch (err) {
       console.error(err.response?.data || err.message);
-      alert("Upload failed");
+      setToast({ message: "Upload failed", type: "error" });
     } finally {
       setUploadingDoc(null);
     }
@@ -217,11 +222,11 @@ function ApplicationDetails() {
                     headers: { 'x-user-id': user.id },
                     withCredentials: true,
                   });
-                  alert(res.data?.message || 'Application deleted');
-                  navigate('/programs');
+                  setToast({ message: res.data?.message || 'Application deleted', type: "success" });
+                  setTimeout(() => navigate('/programs'), 1500);
                 } catch (err) {
                   console.error('Delete failed:', err.response?.data || err.message);
-                  alert(err.response?.data?.message || 'Failed to delete application');
+                  setToast({ message: err.response?.data?.message || 'Failed to delete application', type: "error" });
                 }
               }}
               className="px-4 py-2 bg-red-600 text-white rounded"
@@ -233,6 +238,7 @@ function ApplicationDetails() {
           <button onClick={() => navigate(-1)} className="px-4 py-2 border rounded">Back</button>
         </div>
       </div>
+      <Toast message={toast.message} type={toast.type} onClose={() => setToast({ message: "", type: "success" })} />
     </main>
   );
 }

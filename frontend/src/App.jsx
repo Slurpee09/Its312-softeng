@@ -8,6 +8,9 @@ import ProgramDetails from "./components/ProgramDetails";
 import DetailedPrograms from "./components/DetailedPrograms";
 import About from "./components/About";
 import Programs from "./components/Programs";
+import Alumni from "./components/Alumni";
+import ProgramAlumni from "./components/ProgramAlumni";
+import AlumniProfile from "./components/AlumniProfile";
 import FAQ from "./components/FAQ";
 import Messages from "./components/Messages";
 import Login from "./components/Login";
@@ -56,6 +59,9 @@ function AnimatedRoutes() {
               <Route path="/program-details" element={<ProgramDetails />} />
               <Route path="/detailed-programs" element={<DetailedPrograms />} />
               <Route path="/programs" element={<Programs />} />
+              <Route path="/alumni" element={<Alumni />} />
+              <Route path="/program-alumni" element={<ProgramAlumni />} />
+              <Route path="/alumni/profile/:id" element={<AlumniProfile />} />
               <Route path="/review-application" element={<ReviewApplication />} />
               <Route path="/my-drafts" element={<MyDrafts />} />
               <Route path="/faqs" element={<FAQ />} />

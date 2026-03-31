@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import Toast from "./Toast";
 
 export default function MyDrafts() {
   const [drafts, setDrafts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [toast, setToast] = useState({ message: "", type: "success" });
   const navigate = useNavigate();
 
   const fetchDrafts = async () => {
@@ -40,7 +42,7 @@ export default function MyDrafts() {
       fetchDrafts();
     } catch (err) {
       console.error('Failed to delete draft:', err.response?.data || err.message);
-      alert(err.response?.data?.message || 'Failed to delete draft');
+      setToast({ message: err.response?.data?.message || 'Failed to delete draft', type: "error" });
     }
   };
 
@@ -78,6 +80,7 @@ export default function MyDrafts() {
           ))}
         </div>
       )}
+      <Toast message={toast.message} type={toast.type} onClose={() => setToast({ message: "", type: "success" })} />
     </main>
   );
 }
