@@ -67,8 +67,8 @@ passport.deserializeUser(async (id, done) => {
 // SIGNUP
 // -----------------------------
 router.post("/signup", async (req, res) => {
-  const { fullname, email, password } = req.body;
-  if (!fullname || !email || !password)
+  const { fullname, email, phone, password } = req.body;
+  if (!fullname || !email || !phone || !password)
     return res.status(400).json({ message: "All fields are required" });
 
   try {
@@ -77,10 +77,26 @@ router.post("/signup", async (req, res) => {
       return res.status(400).json({ message: "Email already exists" });
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const [result] = await db.query(
-      "INSERT INTO users (fullname, email, password, role) VALUES (?, ?, ?, ?)",
-      [fullname, email, hashedPassword, "user"]
+    const [[phoneColumn]] = await db.query(
+      `SELECT COUNT(*) AS cnt
+       FROM INFORMATION_SCHEMA.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE()
+         AND TABLE_NAME = 'users'
+         AND COLUMN_NAME = 'phone'`
     );
+
+    let result;
+    if (Number(phoneColumn?.cnt || 0) > 0) {
+      [result] = await db.query(
+        "INSERT INTO users (fullname, email, phone, password, role) VALUES (?, ?, ?, ?, ?)",
+        [fullname.trim(), email.trim(), String(phone).trim(), hashedPassword, "user"]
+      );
+    } else {
+      [result] = await db.query(
+        "INSERT INTO users (fullname, email, password, role) VALUES (?, ?, ?, ?)",
+        [fullname.trim(), email.trim(), hashedPassword, "user"]
+      );
+    }
 
     // fetch created user
     const [rows] = await db.query("SELECT * FROM users WHERE id = ?", [result.insertId]);

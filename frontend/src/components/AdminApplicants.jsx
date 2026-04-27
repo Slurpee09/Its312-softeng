@@ -51,6 +51,7 @@ function AdminApplicants() {
   const location = useLocation();
   const [applicants, setApplicants] = useState([]);
   const [search, setSearch] = useState("");
+  const [applicationDate, setApplicationDate] = useState("");
   const [showView, setShowView] = useState(null);
   const [deleteId, setDeleteId] = useState(null);
   const [showTrash, setShowTrash] = useState(false);
@@ -60,6 +61,8 @@ function AdminApplicants() {
   const [remarkData, setRemarkData] = useState(null);
   const [remarkText, setRemarkText] = useState("");
   const [showVerifyAllConfirm, setShowVerifyAllConfirm] = useState(false);
+  const [rejectId, setRejectId] = useState(null);
+  const [permanentDeleteId, setPermanentDeleteId] = useState(null);
   const [toast, setToast] = useState(null);
   const [supportedDocStatusKeys, setSupportedDocStatusKeys] = useState([]);
   const [statusFilter, setStatusFilter] = useState("All");
@@ -76,6 +79,16 @@ function AdminApplicants() {
     ...applicants.map(a => a.program_name).filter(Boolean),
     ...EXTRA_PROGRAMS
   ])).sort();
+
+  const getLocalDateValue = (dateString) => {
+    if (!dateString) return "";
+    const date = new Date(dateString);
+    if (Number.isNaN(date.getTime())) return "";
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
 
   const showToast = (message, type = "success") => {
     setToast({ message, type });
@@ -278,6 +291,14 @@ function AdminApplicants() {
 
   // --- DELETE APPLICANT ---
   const confirmDelete = id => setDeleteId(id);
+  const confirmReject = id => setRejectId(id);
+
+  const doReject = async () => {
+    if (!rejectId) return;
+    await acceptRejectApplicant(rejectId, "Rejected");
+    setRejectId(null);
+  };
+
   const doDelete = async () => {
     try {
       // Get applicant data before deletion to create notification and get user_id
@@ -334,33 +355,62 @@ function AdminApplicants() {
     } catch (err) { console.error('Failed to permanently delete trashed application', err); showToast('Delete failed', 'error'); }
   };
 
+  const confirmPermanentDelete = (trashId) => setPermanentDeleteId(trashId);
+
+  const doPermanentDelete = async () => {
+    if (!permanentDeleteId) return;
+    await permanentlyDelete(permanentDeleteId);
+    setPermanentDeleteId(null);
+  };
+
   // --- EXPORT CSV ---
 
 
   // --- SEARCH + STATUS FILTER ---
-  const filtered = applicants.filter(a => {
-    const name = String(a.full_name || (a.data && a.data.full_name) || "");
-    const email = String(a.email || (a.data && a.data.email) || "");
-    const phone = String(a.phone || "");
-    const program = String(a.program_name || "");
+  const statusOrder = {
+    pending: 0,
+    Pending: 0,
+    accepted: 1,
+    Accepted: 1,
+    approved: 1,
+    Approved: 1,
+    rejected: 2,
+    Rejected: 2,
+  };
 
-    const q = search.toLowerCase();
-    const matchesSearch = name.toLowerCase().includes(q) ||
-      email.toLowerCase().includes(q) ||
-      phone.toLowerCase().includes(q) ||
-      program.toLowerCase().includes(q);
+  const filtered = applicants
+    .filter(a => {
+      const name = String(a.full_name || (a.data && a.data.full_name) || "");
+      const email = String(a.email || (a.data && a.data.email) || "");
+      const phone = String(a.phone || "");
+      const program = String(a.program_name || "");
+      const appliedOn = getLocalDateValue(a.created_at);
 
-    const matchesStatus = statusFilter === 'All' ? true : String(a.status) === statusFilter;
+      const q = search.toLowerCase();
+      const matchesSearch = name.toLowerCase().includes(q) ||
+        email.toLowerCase().includes(q) ||
+        phone.toLowerCase().includes(q) ||
+        program.toLowerCase().includes(q);
 
-    const matchesProgram = programFilter === 'All' ? true : String(a.program_name) === programFilter;
+      const matchesDate = applicationDate ? appliedOn === applicationDate : true;
+      const matchesStatus = statusFilter === 'All' ? true : String(a.status) === statusFilter;
 
-    // Completeness: all FILE_COLUMNS present (kept for potential future use)
-    const uploadedFiles = FILE_COLUMNS.filter(f => a[f]);
-    const isComplete = uploadedFiles.length > 0 && uploadedFiles.length === FILE_COLUMNS.length;
+      const matchesProgram = programFilter === 'All' ? true : String(a.program_name) === programFilter;
 
-    // Exclude Draft applications from the admin list
-    return matchesSearch && matchesStatus && matchesProgram && a.status !== 'Draft';
-  });
+      // Completeness: all FILE_COLUMNS present (kept for potential future use)
+      const uploadedFiles = FILE_COLUMNS.filter(f => a[f]);
+      const isComplete = uploadedFiles.length > 0 && uploadedFiles.length === FILE_COLUMNS.length;
+
+      // Exclude Draft applications from the admin list
+      return matchesSearch && matchesDate && matchesStatus && matchesProgram && a.status !== 'Draft';
+    })
+    .slice() // clone before sorting
+    .sort((a, b) => {
+      const orderA = statusOrder[String(a.status) || ""] ?? 3;
+      const orderB = statusOrder[String(b.status) || ""] ?? 3;
+      if (orderA !== orderB) return orderA - orderB;
+      return Number(a.id) - Number(b.id);
+    });
 
   // --- REMARK FUNCTIONS ---
   const showRemark = async (applicationId, documentName) => {
@@ -490,21 +540,40 @@ function AdminApplicants() {
 
         {/* Filters and Search */}
         <div className="bg-white rounded-xl shadow-md p-6 mb-6">
-          <div className="flex flex-col md:flex-row gap-4 items-start md:items-center">
-            <div className="flex-1">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5 items-stretch">
+            <div className="flex items-center gap-2 w-full min-w-0">
+              <input
+                type="date"
+                value={applicationDate}
+                onChange={(e) => setApplicationDate(e.target.value)}
+                className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                title="Filter applicants by application date"
+              />
+              {applicationDate && (
+                <button
+                  type="button"
+                  onClick={() => setApplicationDate("")}
+                  className="shrink-0 rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+
+            <div className="min-w-0 sm:col-span-2 xl:col-span-1">
               <input
                 type="text"
                 placeholder="Search by name or email..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent md:text-base"
               />
             </div>
 
             <select
               value={programFilter}
               onChange={(e) => setProgramFilter(e.target.value)}
-              className="rounded-lg border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent min-w-0 md:min-w-64"
+              className="min-w-0 rounded-lg border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               <option value="All">All Programs</option>
               {programs.map(p => <option key={p} value={p}>{p}</option>)}
@@ -513,7 +582,7 @@ function AdminApplicants() {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="rounded-lg border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent min-w-0 md:min-w-36"
+              className="min-w-0 rounded-lg border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               <option value="All">All Status</option>
               <option value="Pending">Pending</option>
@@ -523,7 +592,7 @@ function AdminApplicants() {
 
             {!remarkData && (
               <button
-                className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors duration-200"
+                className="flex h-11 items-center justify-center gap-2 rounded-lg bg-gray-100 px-4 text-gray-700 transition-colors duration-200 hover:bg-gray-200 whitespace-nowrap sm:col-span-2 xl:col-span-1"
                 onClick={async () => { const next = !showTrash; setShowTrash(next); if (next) await fetchTrash(); }}
               >
                 <Trash2 size={16} />
@@ -531,13 +600,15 @@ function AdminApplicants() {
               </button>
             )}
           </div>
+
         </div>
 
       {/* DESKTOP TABLE */}
       <div className="hidden md:block">
         {showTrash ? (
           <div className="bg-white rounded-xl shadow-md overflow-hidden">
-            <table className="w-full text-left">
+            <div className="overflow-x-auto">
+            <table className="min-w-[900px] w-full text-left">
               <thead className="bg-blue-800 text-white">
                 <tr>
                   <th className="px-6 py-3 text-left font-semibold">Name</th>
@@ -575,10 +646,7 @@ function AdminApplicants() {
                             Restore
                           </button>
                           <button 
-                            onClick={() => {
-                              if (!window.confirm('Permanently delete this trashed application? This cannot be undone.')) return;
-                              permanentlyDelete(t.id);
-                            }}
+                            onClick={() => confirmPermanentDelete(t.id)}
                             className={`${BTN_DANGER}`}
                             title="Delete Permanently"
                           >
@@ -591,10 +659,12 @@ function AdminApplicants() {
                 )}
               </tbody>
             </table>
+            </div>
           </div>
         ) : (
           <div className="bg-white rounded-xl shadow-md overflow-hidden">
-            <table className="w-full text-left">
+            <div className="overflow-x-auto">
+            <table className="min-w-[980px] w-full text-left">
               <thead className="bg-blue-800 text-white">
                 <tr>
                   <th className="px-6 py-3 text-left font-semibold">Name</th>
@@ -644,7 +714,7 @@ function AdminApplicants() {
                             </button>
                             <button 
                               disabled={a.status === "Accepted" || a.status === "Rejected"} 
-                              onClick={() => acceptRejectApplicant(a.id, "Rejected")}
+                              onClick={() => confirmReject(a.id)}
                               title={a.status === "Accepted" || a.status === "Rejected" ? "Cannot reject after already rejected or accepted" : "Reject"}
                               className={`${BTN_DANGER} disabled:opacity-50 disabled:cursor-not-allowed`}
                             >
@@ -666,6 +736,7 @@ function AdminApplicants() {
                 )}
               </tbody>
             </table>
+            </div>
           </div>
         )}
       </div>
@@ -693,10 +764,7 @@ function AdminApplicants() {
                     Restore
                   </button>
                   <button 
-                    onClick={() => {
-                      if (!window.confirm('Permanently delete this trashed application? This cannot be undone.')) return;
-                      permanentlyDelete(t.id);
-                    }}
+                    onClick={() => confirmPermanentDelete(t.id)}
                     className={`${BTN_DANGER} flex-1`}
                   >
                     Delete
@@ -739,7 +807,7 @@ function AdminApplicants() {
                     </button>
                     <button 
                       disabled={a.status === "Accepted" || a.status === "Rejected"} 
-                      onClick={() => acceptRejectApplicant(a.id, "Rejected")}
+                      onClick={() => confirmReject(a.id)}
                       title={a.status === "Accepted" || a.status === "Rejected" ? "Cannot reject after already rejected or accepted" : "Reject"}
                       className={`${BTN_DANGER} w-full sm:flex-1 disabled:opacity-50 disabled:cursor-not-allowed`}
                     >
@@ -897,6 +965,34 @@ function AdminApplicants() {
             <div className="flex justify-center gap-3">
               <button onClick={() => setDeleteId(null)} className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 transition-all duration-200">Cancel</button>
               <button onClick={doDelete} className={BTN_DANGER}>Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* REJECT CONFIRM MODAL */}
+      {rejectId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div className="bg-white rounded-lg p-6 w-96 text-center shadow">
+            <h3 className="text-lg font-semibold mb-2">Confirm Reject</h3>
+            <p className="text-gray-600 mb-4">Are you sure you want to reject this application?</p>
+            <div className="flex justify-center gap-3">
+              <button onClick={() => setRejectId(null)} className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 transition-all duration-200">No</button>
+              <button onClick={doReject} className={BTN_DANGER}>Yes</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PERMANENT DELETE CONFIRM MODAL */}
+      {permanentDeleteId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div className="bg-white rounded-lg p-6 w-96 text-center shadow">
+            <h3 className="text-lg font-semibold mb-2">Confirm Permanent Delete</h3>
+            <p className="text-gray-600 mb-4">Are you sure you want to permanently delete this application? This cannot be undone.</p>
+            <div className="flex justify-center gap-3">
+              <button onClick={() => setPermanentDeleteId(null)} className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 transition-all duration-200">No</button>
+              <button onClick={doPermanentDelete} className={BTN_DANGER}>Yes</button>
             </div>
           </div>
         </div>

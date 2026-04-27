@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useContext } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { FaEnvelope, FaUserCircle, FaFolderOpen } from "react-icons/fa";
 import ETEEAP_LOGO from "../assets/ETEEAP_LOGO.png";
 import LCCB_LOGO from "../assets/LCCB_LOGO.png";
 import axios from "axios";
 import ProfileModal from "./ProfileModal";
+import { UserContext } from "./UserContext";
 
 function Navbar() {
   const [showNotifications, setShowNotifications] = useState(false);
@@ -16,10 +17,63 @@ function Navbar() {
   const notificationRef = useRef(null);
 
   const navigate = useNavigate();
-  const user = JSON.parse(localStorage.getItem("user"));
+  const { user, logout } = useContext(UserContext);
+  const unreadCount = notifications.filter((n) => !n.read).length;
+
+  const markNotificationRead = async (notificationKey) => {
+    if (!notificationKey) return;
+    try {
+      await axios.post(
+        "http://localhost:5000/notifications/mark-read",
+        { notification_key: notificationKey },
+        { headers: user ? { "x-user-id": user.id } : {}, withCredentials: true }
+      );
+      setNotifications((prev) =>
+        prev.map((n) => (n.notification_key === notificationKey ? { ...n, read: true } : n))
+      );
+      try { window.dispatchEvent(new CustomEvent("notifications-updated")); } catch (e) {}
+    } catch (e) {
+      console.error("Failed to mark notification read:", e?.response?.data || e.message);
+    }
+  };
+
+  const markAllNotificationsRead = async (list) => {
+    const source = Array.isArray(list) ? list : notifications;
+    const unread = source.filter((n) => n.notification_key && !n.read);
+    if (unread.length === 0) {
+      setNotifications(source);
+      return;
+    }
+
+    const results = await Promise.allSettled(
+      unread.map((n) =>
+        axios.post(
+          "http://localhost:5000/notifications/mark-read",
+          { notification_key: n.notification_key },
+          { headers: user ? { "x-user-id": user.id } : {}, withCredentials: true }
+        )
+      )
+    );
+
+    const successKeys = unread
+      .filter((_, idx) => results[idx].status === "fulfilled")
+      .map((n) => n.notification_key);
+
+    if (successKeys.length > 0) {
+      const keySet = new Set(successKeys);
+      setNotifications(source.map((n) => (keySet.has(n.notification_key) ? { ...n, read: true } : n)));
+      try { window.dispatchEvent(new CustomEvent("notifications-updated")); } catch (e) {}
+    } else {
+      setNotifications(source);
+    }
+  };
 
   const handleLogout = () => {
-    localStorage.removeItem("user");
+    logout();
+    setShowProfile(false);
+    setMobileProfileOpen(false);
+    setMobileOpen(false);
+    setShowNotifications(false);
     // Navigate to home and ensure scroll is at top (fixes leftover scroll position after logout)
     navigate("/", { replace: true });
     try {
@@ -47,17 +101,22 @@ function Navbar() {
 
     const willOpen = !showNotifications;
     setShowNotifications(willOpen);
-    if (willOpen) fetchNotifications();
+    if (willOpen) fetchNotifications({ markAsRead: true });
   };
 
-  const fetchNotifications = async () => {
+  const fetchNotifications = async ({ markAsRead = false } = {}) => {
     if (!user) return;
     try {
       const res = await axios.get("http://localhost:5000/notifications", {
         headers: { "x-user-id": user.id },
         withCredentials: true,
       });
-      setNotifications(Array.isArray(res.data) ? res.data : []);
+      const list = Array.isArray(res.data) ? res.data : [];
+      if (markAsRead) {
+        await markAllNotificationsRead(list);
+      } else {
+        setNotifications(list);
+      }
     } catch (err) {
       console.error("Failed to fetch notifications:", err.response?.data || err.message);
       setNotifications([]);
@@ -66,8 +125,18 @@ function Navbar() {
 
   // Fetch notifications on mount and set up polling
   useEffect(() => {
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+      pollIntervalRef.current = null;
+    }
+
+    if (!user) {
+      setNotifications([]);
+      return;
+    }
+
     fetchNotifications();
-    
+
     // Poll for new notifications every 15 seconds
     pollIntervalRef.current = setInterval(() => {
       fetchNotifications();
@@ -77,13 +146,20 @@ function Navbar() {
       if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [user]);
 
   // Listen for requests to open the profile modal (used after OAuth flows)
   useEffect(() => {
     const onOpenProfile = () => setShowProfile(true);
     window.addEventListener('openProfile', onOpenProfile);
     return () => window.removeEventListener('openProfile', onOpenProfile);
+  }, []);
+
+  useEffect(() => {
+    const onNotificationsUpdated = () => fetchNotifications();
+    window.addEventListener("notifications-updated", onNotificationsUpdated);
+    return () => window.removeEventListener("notifications-updated", onNotificationsUpdated);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Click outside to close notifications
@@ -143,9 +219,9 @@ function Navbar() {
                   >
                     <FaEnvelope size={26} className="text-gray-600" />
                   </button>
-                  {notifications.length > 0 && (
+                  {unreadCount > 0 && (
                     <span className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full text-xs w-5 h-5 flex items-center justify-center">
-                      {notifications.length}
+                      {unreadCount}
                     </span>
                   )}
                 </div>
@@ -223,14 +299,14 @@ function Navbar() {
                     onMouseEnter={() => {
                       if (!showNotifications) {
                         setShowNotifications(true);
-                        fetchNotifications();
+                        fetchNotifications({ markAsRead: true });
                       }
                     }}
                   >
                     <FaEnvelope size={28} className="text-gray-600 hover:text-blue-600" />
-                    {notifications.length > 0 && (
+                    {unreadCount > 0 && (
                       <span className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full text-sm w-5 h-5 flex items-center justify-center">
-                        {notifications.length}
+                        {unreadCount}
                       </span>
                     )}
 
@@ -248,20 +324,7 @@ function Navbar() {
                                 key={idx}
                                 onClick={async () => {
                                   setShowNotifications(false);
-                                  try {
-                                    // mark notification read on server
-                                    if (n.notification_key) {
-                                      const stored = localStorage.getItem('user');
-                                      const user = stored ? JSON.parse(stored) : null;
-                                      await axios.post(
-                                        "http://localhost:5000/notifications/mark-read",
-                                        { notification_key: n.notification_key },
-                                        { headers: user ? { 'x-user-id': user.id } : {}, withCredentials: true }
-                                      );
-                                    }
-                                  } catch (e) {
-                                    console.error("Failed to mark notification read:", e?.response?.data || e.message);
-                                  }
+                                  await markNotificationRead(n.notification_key);
 
                                   if (n.type === "remark") navigate(`/applications/${n.application_id}?doc=${encodeURIComponent(n.document_name)}`);
                                   else if (n.type === "application") navigate(`/admin?open=${n.application_id}`);
@@ -288,7 +351,7 @@ function Navbar() {
                     aria-label="My Drafts"
                     className="p-2 rounded-md hover:bg-gray-100 focus:outline-none"
                   >
-                    <FaFolderOpen size={22} className="text-gray-600" />
+                    <FaFolderOpen size={28} className="text-gray-600" />
                   </button>
                 </div>
 

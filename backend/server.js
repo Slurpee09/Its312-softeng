@@ -16,6 +16,7 @@ import submitApplicationRoutes from "./config/submit_application.js";
 import profileRoutes from "./routes/profile.js";
 import adminRoutes from "./routes/admin.js";
 import adminDashboardRoutes from "./routes/adminDashboard.js"; 
+import alumniRoutes from "./routes/alumni.js";
 import notificationsRoutes from "./routes/notifications.js";
 import { logActivity } from "./utils/activityLogger.js";
 
@@ -36,7 +37,16 @@ export const db = mysql.createPool({
 // Middleware
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: [
+      "http://localhost:5173",
+      "http://127.0.0.1:5173",
+      "http://localhost:5174",
+      "http://127.0.0.1:5174",
+      "http://localhost:3000",
+      "http://127.0.0.1:3000",
+      "http://localhost:8081",
+      "http://127.0.0.1:8081",
+    ],
     credentials: true,
   })
 );
@@ -73,6 +83,7 @@ app.use("/submit_application", submitApplicationRoutes);
 app.use("/profile", profileRoutes);
 app.use("/admin", adminRoutes);                      
 app.use("/admin", adminDashboardRoutes);   // ✅ FIXED — now matches frontend
+app.use("/alumni", alumniRoutes);
 app.use("/notifications", notificationsRoutes);
 
 // Serve uploads
@@ -180,6 +191,33 @@ app.listen(port, async () => {
       console.log('Verified files table ensured');
     } catch (e) {
       console.error('Failed to ensure verified_files table', e);
+    }
+  })();
+
+  // Ensure alumni table exists
+  (async () => {
+    try {
+      await db.query(`
+        CREATE TABLE IF NOT EXISTS alumni (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          full_name VARCHAR(255) NOT NULL,
+          college_id VARCHAR(255),
+          email VARCHAR(255) NOT NULL,
+          program_name VARCHAR(255),
+          batch VARCHAR(100),
+          job_title VARCHAR(255),
+          company VARCHAR(255),
+          success_story LONGTEXT,
+          picture VARCHAR(255),
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          INDEX (email),
+          INDEX (program_name),
+          INDEX (college_id)
+        ) ENGINE=InnoDB;
+      `);
+      console.log('Alumni table ensured');
+    } catch (e) {
+      console.error('Failed to ensure alumni table', e);
     }
   })();
 })();

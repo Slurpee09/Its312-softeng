@@ -2,12 +2,15 @@ import React, { useState, useEffect, useContext } from "react";
 import { FaUser, FaEnvelope, FaLock, FaGoogle, FaSpinner } from "react-icons/fa";
 import { Link, useNavigate } from "react-router-dom";
 import { UserContext } from "./UserContext";
+import api from "../api/axios";
 import bgImage from "../assets/lccbg.jpg";
 
 const Signup = () => {
-  const { user } = useContext(UserContext);
-  const [fullname, setFullname] = useState("");
+  const { user, login } = useContext(UserContext);
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [agreed, setAgreed] = useState(false);
   const [showPolicy, setShowPolicy] = useState(false);
@@ -30,7 +33,7 @@ const Signup = () => {
       if (user && user.id) {
         console.log("Google user:", user);
         // Persist user so the app treats them as logged in
-        try { localStorage.setItem("user", JSON.stringify(user)); } catch (e) { console.error(e); }
+        login(user);
         setMessage({ type: "success", text: `Welcome, ${user.fullname}` });
         setTimeout(() => {
           navigate("/", { replace: true });
@@ -47,7 +50,7 @@ const Signup = () => {
     };
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
-  }, [navigate]);
+  }, [navigate, login]);
 
   useEffect(() => {
     if (message) {
@@ -61,11 +64,7 @@ const Signup = () => {
   // --------------------------
   const logSignupActivity = async (email) => {
     try {
-      await fetch("http://localhost:5000/log_activity", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: 'signup', details: { email } }),
-      });
+      await api.post("/log_activity", { action: "signup", details: { email } });
     } catch (err) {
       console.error("Activity Signup Error:", err);
     }
@@ -77,44 +76,53 @@ const Signup = () => {
       return;
     }
 
-    if (!fullname || !email || !password) {
+    if (!firstName || !lastName || !email || !phone || !password) {
       setMessage({ type: "error", text: "Please fill all fields." });
       return;
     }
+
+    const fullname = `${firstName.trim()} ${lastName.trim()}`.trim();
+    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedPhone = phone.trim();
 
     setLoading(true);
     setMessage(null);
 
     try {
-      const response = await fetch("http://localhost:5000/auth/signup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fullname, email, password }),
+      const { data: result } = await api.post("/auth/signup", {
+        fullname,
+        email: normalizedEmail,
+        phone: normalizedPhone,
+        password,
       });
 
-      const result = await response.json();
-
-      if (response.ok) {
+      if (result?.success) {
         // Signup succeeded — do NOT auto-login. Prompt user to login.
         setMessage({ type: "success", text: result.message || "Signup successful. Please login." });
 
         // CLEAR INPUTS
-        setFullname("");
+        setFirstName("");
+        setLastName("");
         setEmail("");
+        setPhone("");
         setPassword("");
         setAgreed(false);
 
+        // Keep latest signup phone as fallback for the application form autofill.
+        localStorage.setItem("signup_phone", normalizedPhone);
+
         // 🔥 ADD SIGNUP ACTIVITY LOG
-        await logSignupActivity(email);
+        await logSignupActivity(normalizedEmail);
 
         // REDIRECT to login
         setTimeout(() => navigate("/login", { replace: true }), 1500);
       } else {
-        setMessage({ type: "error", text: result.message || "Signup failed" });
+        setMessage({ type: "error", text: result?.message || "Signup failed" });
       }
     } catch (error) {
       console.error(error);
-      setMessage({ type: "error", text: "Network error. Please try again." });
+      const apiMessage = error?.response?.data?.message;
+      setMessage({ type: "error", text: apiMessage || "Network error. Please try again." });
     } finally {
       setLoading(false);
     }
@@ -144,14 +152,26 @@ const Signup = () => {
           Create an Account
         </h2>
 
-        {/* Full Name */}
+        {/* First Name */}
         <div className="mb-4 relative">
           <FaUser className="absolute top-3 left-3 text-gray-400" />
           <input
             type="text"
-            placeholder="Full Name"
-            value={fullname}
-            onChange={(e) => setFullname(e.target.value)}
+            placeholder="First Name"
+            value={firstName}
+            onChange={(e) => setFirstName(e.target.value)}
+            className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+
+        {/* Last Name */}
+        <div className="mb-4 relative">
+          <FaUser className="absolute top-3 left-3 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Last Name"
+            value={lastName}
+            onChange={(e) => setLastName(e.target.value)}
             className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
@@ -164,6 +184,18 @@ const Signup = () => {
             placeholder="Email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+
+        {/* Phone */}
+        <div className="mb-4 relative">
+          <FaUser className="absolute top-3 left-3 text-gray-400" />
+          <input
+            type="tel"
+            placeholder="Phone Number"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
             className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>

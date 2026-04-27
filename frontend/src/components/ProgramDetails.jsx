@@ -457,14 +457,17 @@ function ProgramDetails() {
       const params = new URLSearchParams(window.location.search);
       const nameParam = params.get('fullname') || params.get('name');
       const emailParam = params.get('email');
+      const phoneParam = params.get('phone');
 
       const stored = localStorage.getItem('user');
       const parsed = stored ? JSON.parse(stored) : null;
+      const signupPhone = localStorage.getItem('signup_phone') || "";
 
       setFormData((prev) => ({
         ...prev,
         fullName: prev.fullName || nameParam || (parsed && parsed.fullname) || "",
         email: prev.email || emailParam || (parsed && parsed.email) || "",
+        phone: prev.phone || phoneParam || (parsed && parsed.phone) || signupPhone || "",
       }));
     } catch (e) {
       // ignore

@@ -57,6 +57,117 @@ export const getAllApplications = async (req, res) => {
   }
 };
 
+export const getAllAlumni = async (req, res) => {
+  try {
+    const [rows] = await db.query(
+      `SELECT id, full_name, college_id, email, program_name, batch, job_title, company, success_story, picture, created_at
+       FROM alumni
+       ORDER BY created_at DESC`
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error("Error fetching alumni:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+export const addAlumni = async (req, res) => {
+  try {
+    const { full_name, college_id, email, program_name, batch, job_title, company, success_story, picture } = req.body;
+    if (!full_name || !email) {
+      return res.status(400).json({ message: "Full name and email are required" });
+    }
+
+    const [result] = await db.query(
+      `INSERT INTO alumni (full_name, college_id, email, program_name, batch, job_title, company, success_story, picture)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [full_name, college_id || null, email, program_name || null, batch || null, job_title || null, company || null, success_story || null, picture || null]
+    );
+
+    const [rows] = await db.query(`SELECT * FROM alumni WHERE id = ?`, [result.insertId]);
+    const created = rows[0];
+    const adminId = req.user?.id;
+    if (adminId) {
+      await logActivity(adminId, "admin", "create_alumni", `Created alumni entry ${created.id}`);
+    }
+    res.status(201).json(created);
+  } catch (err) {
+    console.error("Error adding alumni:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+export const updateAlumni = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const [rows] = await db.query(`SELECT * FROM alumni WHERE id = ?`, [id]);
+
+    if (!rows.length) {
+      return res.status(404).json({ message: "Alumni not found" });
+    }
+
+    const current = rows[0];
+    const updated = { ...current, ...req.body };
+
+    if (!updated.full_name || !updated.email) {
+      return res.status(400).json({ message: "Full name and email are required" });
+    }
+
+    await db.query(
+      `UPDATE alumni
+       SET full_name = ?, college_id = ?, gender = ?, batch = ?, email = ?, picture = ?, success_story = ?, program_name = ?, job_title = ?, company = ?
+       WHERE id = ?`,
+      [
+        updated.full_name,
+        updated.college_id || null,
+        updated.gender || null,
+        updated.batch || null,
+        updated.email,
+        updated.picture || null,
+        updated.success_story || null,
+        updated.program_name || null,
+        updated.job_title || null,
+        updated.company || null,
+        id,
+      ]
+    );
+
+    const [savedRows] = await db.query(`SELECT * FROM alumni WHERE id = ?`, [id]);
+    const saved = savedRows[0];
+    const adminId = req.user?.id;
+    if (adminId) {
+      await logActivity(adminId, "admin", "update_alumni", `Updated alumni entry ${id}`);
+    }
+    res.json(saved);
+  } catch (err) {
+    console.error("Error updating alumni:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+export const deleteAlumni = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const [rows] = await db.query(`SELECT * FROM alumni WHERE id = ?`, [id]);
+
+    if (!rows.length) {
+      return res.status(404).json({ message: "Alumni not found" });
+    }
+
+    await db.query(`DELETE FROM alumni WHERE id = ?`, [id]);
+
+    const adminId = req.user?.id;
+    if (adminId) {
+      await logActivity(adminId, "admin", "delete_alumni", `Deleted alumni entry ${id}`);
+    }
+
+    res.json({ message: "Alumni deleted successfully" });
+  } catch (err) {
+    console.error("Error deleting alumni:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 export const updateApplicationStatus = async (req, res) => {
   const applicationId = req.params.id;
   const { status } = req.body;

@@ -16,7 +16,7 @@ const alumni = [
     business: null,
     bio: "ESL instructor and curriculum developer.",
     quote: "ETE EAP helped me formalize my experience into a degree — it changed my career.",
-    image: brumaImg,
+    image: threeImg,
   },
   {
     id: "maria-santos",
@@ -52,7 +52,7 @@ const alumni = [
     business: null,
     bio: "Talent acquisition and development specialist.",
     quote: "The HR modules helped me develop a people-first approach that employers value.",
-    image: ellenImg,
+    image: threeImg,
   },
   {
     id: "liza-cruz",

@@ -101,8 +101,16 @@ router.get("/", async (req, res) => {
 
     // 3) Fetch application statuses (include timestamp)
     const [statuses] = await db.query(
-      `SELECT id AS id, id AS application_id, CONCAT('Application Status: ', status) AS title,
-              status AS message, updated_at AS date, UNIX_TIMESTAMP(updated_at) AS ts
+      `SELECT id AS id, id AS application_id,
+              CASE
+                WHEN status = 'Accepted' THEN 'Application Status: Accepted'
+                ELSE CONCAT('Application Status: ', status)
+              END AS title,
+              CASE
+                WHEN status = 'Accepted' THEN 'You are now accepted. You can proceed to La Consolacion College Bacolod.'
+                ELSE status
+              END AS message,
+              updated_at AS date, UNIX_TIMESTAMP(updated_at) AS ts
        FROM applications
        WHERE id IN (?)
        ORDER BY updated_at DESC

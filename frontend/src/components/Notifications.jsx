@@ -8,11 +8,39 @@ function Notifications() {
 
   const user = JSON.parse(localStorage.getItem("user"));
 
+  const markAllAsRead = async (list) => {
+    const unread = list.filter((n) => n.notification_key && !n.read);
+    if (unread.length === 0) return list;
+
+    const results = await Promise.allSettled(
+      unread.map((n) =>
+        axios.post(
+          "http://localhost:5000/notifications",
+          { notification_key: n.notification_key },
+          { headers: user ? { "x-user-id": user.id } : {}, withCredentials: true }
+        )
+      )
+    );
+
+    const successKeys = unread
+      .filter((_, idx) => results[idx].status === "fulfilled")
+      .map((n) => n.notification_key);
+
+    if (successKeys.length === 0) return list;
+
+    const keySet = new Set(successKeys);
+    return list.map((n) => (keySet.has(n.notification_key) ? { ...n, read: true } : n));
+  };
+
   const fetchNotifications = async () => {
     if (!user) return;
     try {
       const res = await axios.get("http://localhost:5000/notifications", { headers: { "x-user-id": user.id }, withCredentials: true });
-      setNotifications(Array.isArray(res.data) ? res.data : []);
+      const list = Array.isArray(res.data) ? res.data : [];
+      const updated = await markAllAsRead(list);
+      console.log(updated)
+      setNotifications(updated);
+      try { window.dispatchEvent(new CustomEvent("notifications-updated")); } catch (e) {}
     } catch (err) {
       console.error("Failed to fetch notifications:", err.response?.data || err.message);
       setNotifications([]);

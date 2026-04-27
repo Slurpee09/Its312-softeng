@@ -13,6 +13,10 @@ import {
   updateAdminProfile,
   getSupportedDocumentStatusKeys,
   verifyFile,
+  getAllAlumni,
+  addAlumni,
+  updateAlumni,
+  deleteAlumni,
 } from "../controllers/adminController.js";
 import { db } from "../server.js";
 import { logActivity } from "../utils/activityLogger.js";
@@ -78,6 +82,14 @@ router.get("/document-status-supported", getSupportedDocumentStatusKeys);
 // --- VERIFY FILE ---
 // ---------------------------
 router.put("/applications/:id/documents/:fileKey/verify", verifyFile);
+
+// ---------------------------
+// --- ALUMNI ---
+// list all alumni records and allow adding a new alumni record
+router.get("/alumni", getAllAlumni);
+router.post("/alumni", addAlumni);
+router.put("/alumni/:id", updateAlumni);
+router.delete("/alumni/:id", deleteAlumni);
 
 // ---------------------------
 // --- DOCUMENT REMARKS ---

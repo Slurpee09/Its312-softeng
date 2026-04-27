@@ -1,9 +1,11 @@
-import React, { useState } from "react";
+import React, { useContext, useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import Toast from "./Toast";
+import { UserContext } from "./UserContext";
 
 function ProfileModal({ user, onClose }) {
+  const { logout } = useContext(UserContext);
   const [formData, setFormData] = useState({ fullname: user?.fullname || "", email: user?.email || "", profile_picture: null });
   const [preview, setPreview] = useState(user?.profile_picture || null);
   const [loading, setLoading] = useState(false);
@@ -11,7 +13,7 @@ function ProfileModal({ user, onClose }) {
   const navigate = useNavigate();
 
   const handleLogout = () => {
-    localStorage.removeItem("user");
+    logout();
     onClose();
     // Go to home after logout and ensure viewport is at the top
     navigate("/", { replace: true });

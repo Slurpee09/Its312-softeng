@@ -7,7 +7,7 @@ import Toast from "./Toast";
 
 const Login = () => {
   const navigate = useNavigate();
-  const { user } = useContext(UserContext);
+  const { user, login } = useContext(UserContext);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -67,7 +67,7 @@ const Login = () => {
 
       if (res.ok && result) {
         await logActivity("User logged in", result.user.id);
-        localStorage.setItem("user", JSON.stringify(result.user));
+        login(result.user);
         showTempMessage(result.message, "success");
 
         setEmail("");
@@ -145,17 +145,11 @@ const Login = () => {
       if (event.origin !== "http://localhost:5000") return;
       const user = event.data;
       if (user && user.id) {
-        localStorage.setItem("user", JSON.stringify(user));
+        login(user);
         showTempMessage(`Welcome, ${user.fullname}`, "success");
         setTimeout(() => {
           if (user.role === "admin") navigate("/admin", { replace: true });
-          else {
-            navigate("/", { replace: true });
-            // If profile looks incomplete, open profile modal so user can update details
-            if (!user.profile_picture || !user.fullname) {
-              try { window.dispatchEvent(new CustomEvent('openProfile')); } catch (e) {}
-            }
-          }
+          else navigate("/", { replace: true });
         }, 1000);
       } else if (user && user.message) {
         setToast({ message: user.message, type: "error" }); // Google account not registered
@@ -163,7 +157,7 @@ const Login = () => {
     };
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
-  }, [navigate]);
+  }, [navigate, login]);
 
   return (
     <div

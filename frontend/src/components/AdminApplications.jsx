@@ -10,9 +10,20 @@ const AdminApplications = () => {
   const [applications, setApplications] = useState(initialApplications);
   const [search, setSearch] = useState("");
 
-  const filtered = applications.filter((a) =>
-    a.name.toLowerCase().includes(search.toLowerCase())
-  );
+  const statusOrder = {
+    Pending: 0,
+    Approved: 1,
+    Accepted: 1,
+    Rejected: 2,
+  };
+
+  const filtered = [...applications]
+    .sort((a, b) => {
+      const orderA = statusOrder[a.status] ?? 3;
+      const orderB = statusOrder[b.status] ?? 3;
+      return orderA - orderB || a.id - b.id;
+    })
+    .filter((a) => a.name.toLowerCase().includes(search.toLowerCase()));
 
   const handleStatus = (id, status) => {
     setApplications((prev) =>
